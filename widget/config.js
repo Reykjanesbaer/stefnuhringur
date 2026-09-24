@@ -27,7 +27,9 @@
     icons:   { def: 1,      bit: true },
     theme:   { def: 'auto', one: ['auto', 'light', 'dark'] },
     bg:      { def: '',     one: ['', 'transparent'] },
-    radius:  { def: 14,     num: [0, 40] }
+    radius:  { def: 14,     num: [0, 40] },
+    iconsize: { def: 100,   num: [60, 140] },
+    icontint: { def: 'none', color: true, none: true }
   };
 
   /* --------------------------------------------------------------------
@@ -54,6 +56,37 @@
     return /^[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : null;
   }
 
+  /* --------------------------------------------------------------------
+   * Eigin tákn: ?icon-born=<slóð> eða none. Ógild slóð → sjálfgefið tákn.
+   * ------------------------------------------------------------------ */
+  var ICON_KEYS = content.segments.map(function (s) { return 'icon-' + s.key; });
+  ICON_KEYS.forEach(function (k) { SPEC[k] = { def: '', icon: true }; });
+
+  var ICON_EXT = /\.(svg|png|webp)$/i;
+
+  /*
+   * Leyfð: https://-slóðir, eða slóðir innan repósins (icons/minn.svg,
+   * /stefnuhringur/widget/icons/…), með endingunni .svg, .png eða .webp.
+   * Allt annað (javascript:, data:, http:, //host, .gif …) → null.
+   * Skilar hreinsaðri slóð, 'none' eða null.
+   */
+  function parseIcon(raw) {
+    if (raw === null || raw === undefined) return null;
+    var v = String(raw).trim();
+    if (v.toLowerCase() === 'none') return 'none';
+    if (!v || v.length > 2000 || /[\s\\"'<>`]/.test(v)) return null;
+    if (/^https:\/\//i.test(v)) {
+      var u;
+      try { u = new URL(v); } catch (e) { return null; }
+      if (u.protocol !== 'https:' || u.username || u.password) return null;
+      return ICON_EXT.test(u.pathname) ? u.href : null;
+    }
+    /* Innan repósins: engin skema (ekkert „:“) og ekki „//host“ */
+    if (v.indexOf(':') !== -1 || /^\/\//.test(v)) return null;
+    if (!/^[\w\-./%~]+$/.test(v)) return null;
+    return ICON_EXT.test(v.split(/[?#]/)[0]) ? v : null;
+  }
+
   var KEYS = Object.keys(SPEC);
 
   function startKeys() {
@@ -73,8 +106,10 @@
     if (raw === null || raw === undefined) return s.def;
     if (s.color) {
       if (s.empty && String(raw).trim() === '') return '';
+      if (s.none && String(raw).trim().toLowerCase() === 'none') return 'none';
       return parseColor(raw) || s.def;
     }
+    if (s.icon) return parseIcon(raw) || s.def;
     var v = String(raw).trim().toLowerCase();
     if (s.num) {
       if (!/^-?\d+(\.\d+)?$/.test(v)) return s.def;
@@ -221,6 +256,8 @@
     SDG: SDG,
     SDG_OFFICIAL: SDG_OFFICIAL,
     COLOR_KEYS: COLOR_KEYS,
+    ICON_KEYS: ICON_KEYS,
+    parseIcon: parseIcon,
     parseColor: parseColor,
     SIZE: SIZE,
     parseSize: parseSize,
