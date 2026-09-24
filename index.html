@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stefnuhringur – forskoðun og kóðasmiður</title>
+<link rel="stylesheet" href="widget/fonts/fonts.css">
+<style>
+  :root {
+    --page: #EEF1F3; --panel: #FFFFFF; --ink: #1F2629; --muted: #5C676C; --line: #D5DCDF;
+    --accent: #2760AB;
+    --font: "Circular Std", "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --page: #16191B; --panel: #1F2427; --ink: #E7ECEE; --muted: #9AA6AB; --line: #323B3F; --accent: #7FA8E0; }
+  }
+  :root[data-theme="dark"] { --page: #16191B; --panel: #1F2427; --ink: #E7ECEE; --muted: #9AA6AB; --line: #323B3F; --accent: #7FA8E0; }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin: 0; background: var(--page); color: var(--ink); font-family: var(--font); font-size: 1rem; line-height: 1.5; }
+  main { max-width: 60rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+  h1 { font-weight: 800; font-size: clamp(1.8rem, 5vw, 2.4rem); line-height: 1.1; margin: 0 0 .35rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; max-width: 38rem; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 0 0 .75rem; }
+
+  .stage { padding: 1.25rem; border-radius: 16px; background:
+    repeating-conic-gradient(color-mix(in srgb, var(--line) 45%, transparent) 0 25%, transparent 0 50%) 0 0 / 18px 18px; }
+  .holder { width: 100%; }
+  #preview { display: block; width: 100%; height: auto; border: 0; color-scheme: normal; }
+  .sample { margin: .75rem 0 0; color: var(--muted); font-size: .9rem; }
+  code { font-size: .88em; }
+
+  /* ---------- builder ---------- */
+  .settings { margin-top: 1.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 1.25rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.1rem 1.75rem; }
+  .ctl label.head, .ctl .head { font-weight: 700; font-size: .95rem; display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .3rem; }
+  .ctl output { font-weight: 500; color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select { width: 100%; font: inherit; padding: .4rem .5rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .seg-ctl { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg-ctl label { flex: 1; text-align: center; padding: .35rem .4rem; cursor: pointer; font-size: .92rem; }
+  .seg-ctl input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg-ctl label:has(input:checked) { background: var(--accent); color: var(--panel); font-weight: 700; }
+  .seg-ctl label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .checks { display: grid; gap: .35rem; }
+  .checks label { display: flex; gap: .5rem; align-items: center; font-size: .95rem; cursor: pointer; }
+  .checks input { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 1.25rem 0; }
+
+  .code { margin-top: 1.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 1.25rem; }
+  .tabs { display: flex; gap: .5rem; margin-bottom: .75rem; flex-wrap: wrap; }
+  .tabs button, .copy { font: inherit; font-size: .92rem; font-weight: 700; border-radius: 9px; padding: .4rem .8rem; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .copy { background: var(--accent); border-color: var(--accent); color: #fff; }
+  pre { margin: 0; overflow-x: auto; background: var(--page); border-radius: 10px; padding: .9rem 1rem; font-size: .85rem; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+  .code-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: .75rem; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: .9rem; margin: 0; max-width: 36rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Stefnuhringur</h1>
+  <p class="lede">Forskoðun og kóðasmiður. Stilltu hringinn hér fyrir neðan og afritaðu innfellingarkóðann. Bentu á hringinn til að stöðva hann og smelltu á áherslu til að þysja inn.</p>
+
+  <div class="stage"><div class="holder" id="holder">
+    <iframe id="preview" title="Forskoðun: Stefnuhringur Reykjanesbæjar" scrolling="no"></iframe>
+  </div></div>
+
+  <form class="settings" id="form">
+    <h2>Stillingar</h2>
+    <div class="grid">
+      <div class="ctl"><label class="head" for="speed">Hraði <output id="o-speed"></output></label>
+        <input id="speed" name="speed" type="range" min="0" max="20" step="1"></div>
+      <div class="ctl"><span class="head">Snúningsátt</span>
+        <div class="seg-ctl" role="radiogroup" aria-label="Snúningsátt">
+          <label><input type="radio" name="dir" value="ccw">Rangsælis</label>
+          <label><input type="radio" name="dir" value="cw">Réttsælis</label>
+        </div></div>
+      <div class="ctl"><label class="head" for="visible">Sýnilegur hluti <output id="o-visible"></output></label>
+        <input id="visible" name="visible" type="range" min="50" max="100" step="5"></div>
+      <div class="ctl"><label class="head" for="zoom">Aðdráttur við smell <output id="o-zoom"></output></label>
+        <input id="zoom" name="zoom" type="range" min="1.2" max="2.5" step="0.1"></div>
+      <div class="ctl"><label class="head" for="start">Upphafsstaða</label>
+        <select id="start" name="start"></select></div>
+      <div class="ctl"><span class="head">Miðjan</span>
+        <div class="seg-ctl" role="radiogroup" aria-label="Miðjan">
+          <label><input type="radio" name="hub" value="full">Alltaf heil</label>
+          <label><input type="radio" name="hub" value="cut">Klippist með</label>
+        </div></div>
+      <div class="ctl"><span class="head">Sýna</span>
+        <div class="checks">
+          <label><input type="checkbox" name="pause"> Stöðva þegar bent er á</label>
+          <label><input type="checkbox" name="desc"> Lýsingar alltaf</label>
+          <label><input type="checkbox" name="sdg"> Heimsmarkmið</label>
+          <label><input type="checkbox" name="icons"> Tákn</label>
+        </div></div>
+      <div class="ctl"><span class="head">Þema</span>
+        <div class="seg-ctl" role="radiogroup" aria-label="Þema">
+          <label><input type="radio" name="theme" value="auto">Sjálfv.</label>
+          <label><input type="radio" name="theme" value="light">Ljóst</label>
+          <label><input type="radio" name="theme" value="dark">Dökkt</label>
+        </div>
+        <div class="checks" style="margin-top:.5rem"><label><input type="checkbox" name="transparent"> Gegnsær bakgrunnur</label></div></div>
+    </div>
+    <hr>
+    <div class="grid">
+      <div class="ctl"><label class="head" for="radius">Hornarúnnun <output id="o-radius"></output></label>
+        <input id="radius" name="radius" type="range" min="0" max="40" step="1"></div>
+      <div class="ctl"><label class="head" for="maxw">Hámarksbreidd <output id="o-maxw"></output></label>
+        <input id="maxw" name="maxw" type="range" min="280" max="1000" step="20"></div>
+      <div class="ctl"><span class="head">Staðsetning á síðu</span>
+        <div class="seg-ctl" role="radiogroup" aria-label="Staðsetning á síðu">
+          <label><input type="radio" name="align" value="left">Vinstri</label>
+          <label><input type="radio" name="align" value="center">Miðja</label>
+          <label><input type="radio" name="align" value="right">Hægri</label>
+        </div></div>
+    </div>
+  </form>
+
+  <section class="code">
+    <h2>Innfellingarkóði</h2>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-tab="iframe">iframe (mælt með)</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="script">Skrifta</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="url">Slóð</button>
+    </div>
+    <pre id="codeOut"></pre>
+    <div class="code-foot">
+      <p class="hint" id="codeHint"></p>
+      <button type="button" class="copy" id="copy">Afrita kóða</button>
+    </div>
+  </section>
+  <p class="sample">Efni hringsins (textar, litir, heimsmarkmið) er í <code>widget/content.js</code>. Sjá <a href="https://github.com/Reykjanesbaer/stefnuhringur#readme">README</a> fyrir allar stillingar.</p>
+</main>
+
+<script src="widget/content.js"></script>
+<script src="widget/config.js"></script>
+<script>
+/*
+ * Kóðasmiður. Forskoðunin er raunverulega græjan (widget/) í iframe, svo
+ * ritstjóri sér nákvæmlega það sem vefurinn fær. Stillingar berast henni
+ * með postMessage — hún endurhleðst ekki og hringurinn hoppar ekki.
+ */
+(function () {
+  'use strict';
+
+  var cfg = window.StefnuConfig;
+  var content = window.StefnuContent;
+  var base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  var $ = function (id) { return document.getElementById(id); };
+
+  var SPEED_STEPS = [0, 600, 480, 360, 300, 240, 200, 180, 150, 120, 100, 90, 75, 60, 50, 45, 40, 35, 30, 25, 20];
+  /* Stillingar sem stýra aðeins iframe-inum, ekki græjunni */
+  var FRAME_DEF = { maxw: 640, align: 'left' };
+
+  var q = new URLSearchParams(location.search);
+  var opts = cfg.parse(location.search);
+  var maxw = parseInt(q.get('maxw'), 10);
+  var frameOpts = {
+    maxw: maxw >= 280 && maxw <= 1000 ? maxw : FRAME_DEF.maxw,
+    align: ['left', 'center', 'right'].indexOf(q.get('align')) !== -1 ? q.get('align') : FRAME_DEF.align
+  };
+
+  var form = $('form'), frame = $('preview'), startSel = form.elements.start;
+  var tab = 'iframe';
+
+  function speedToStep(s) {
+    var best = 0, d = Infinity;
+    SPEED_STEPS.forEach(function (v, i) {
+      var dd = Math.abs(v - s);
+      if (dd < d) { d = dd; best = i; }
+    });
+    return best;
+  }
+
+  function fmtSpeed(s) {
+    if (!s) return 'stopp';
+    var m = Math.floor(s / 60), r = s % 60;
+    return '1 hringur á ' + (m ? m + ' mín' + (r ? ' ' + r + ' sek' : '') : r + ' sek');
+  }
+
+  function margins(align) {
+    if (align === 'center') return 'margin-left:auto;margin-right:auto';
+    if (align === 'right') return 'margin-left:auto;margin-right:0';
+    return 'margin-left:0;margin-right:auto';
+  }
+
+  /* Upphafsstöður úr content.js */
+  [['mynd', 'Eins og á myndinni']].concat(content.segments.map(function (s) {
+    return [s.key, s.title.join(' ') + ' efst'];
+  })).forEach(function (p) {
+    var o = document.createElement('option');
+    o.value = p[0];
+    o.textContent = p[1];
+    startSel.appendChild(o);
+  });
+
+  function toForm() {
+    var el = form.elements;
+    el.speed.value = speedToStep(opts.speed);
+    el.visible.value = opts.visible;
+    el.zoom.value = opts.zoom;
+    el.radius.value = opts.radius;
+    el.maxw.value = frameOpts.maxw;
+    startSel.value = opts.start;
+    ['dir', 'hub', 'theme'].forEach(function (n) {
+      form.querySelectorAll('input[name=' + n + ']').forEach(function (r) { r.checked = r.value === opts[n]; });
+    });
+    form.querySelectorAll('input[name=align]').forEach(function (r) { r.checked = r.value === frameOpts.align; });
+    ['pause', 'desc', 'sdg', 'icons'].forEach(function (n) { el[n].checked = !!opts[n]; });
+    el.transparent.checked = opts.bg === 'transparent';
+  }
+
+  function fromForm() {
+    var el = form.elements, raw = {};
+    raw.speed = SPEED_STEPS[+el.speed.value];
+    raw.visible = el.visible.value;
+    raw.zoom = el.zoom.value;
+    raw.radius = el.radius.value;
+    raw.start = startSel.value;
+    ['dir', 'hub', 'theme'].forEach(function (n) {
+      var r = form.querySelector('input[name=' + n + ']:checked');
+      raw[n] = r ? r.value : null;
+    });
+    ['pause', 'desc', 'sdg', 'icons'].forEach(function (n) { raw[n] = el[n].checked ? 1 : 0; });
+    raw.bg = el.transparent.checked ? 'transparent' : '';
+    opts = cfg.parse(raw);
+    frameOpts.maxw = +el.maxw.value;
+    var a = form.querySelector('input[name=align]:checked');
+    frameOpts.align = a ? a.value : 'left';
+    sendToPreview();
+    render();
+  }
+
+  function widgetQuery() {
+    var p = new URLSearchParams();
+    cfg.changed(opts).forEach(function (kv) { p.set(kv[0], kv[1]); });
+    return p.toString();
+  }
+
+  function sendToPreview() {
+    if (!frame.contentWindow) return;
+    frame.contentWindow.postMessage({ type: 'stefnuhringur:options', options: opts }, location.origin);
+  }
+
+  function render() {
+    var ratio = cfg.aspect(opts);
+    var marg = margins(frameOpts.align);
+
+    $('o-speed').textContent = fmtSpeed(opts.speed);
+    $('o-visible').textContent = opts.visible + ' %';
+    $('o-zoom').textContent = opts.zoom.toFixed(1).replace('.', ',') + '×';
+    $('o-radius').textContent = opts.radius + ' px';
+    $('o-maxw').textContent = frameOpts.maxw + ' px';
+
+    var holder = $('holder');
+    holder.style.maxWidth = frameOpts.maxw + 'px';
+    holder.style.marginLeft = frameOpts.align === 'left' ? '0' : 'auto';
+    holder.style.marginRight = frameOpts.align === 'right' ? '0' : 'auto';
+    frame.style.aspectRatio = ratio;
+
+    var wq = widgetQuery();
+    var url = base + 'widget/' + (wq ? '?' + wq : '');
+    var code = '', hint = '';
+
+    if (tab === 'iframe') {
+      code = '<iframe\n' +
+        '  src="' + url + '"\n' +
+        '  title="' + content.label + '"\n' +
+        '  loading="lazy"\n' +
+        '  scrolling="no"\n' +
+        '  style="width:100%;max-width:' + frameOpts.maxw + 'px;aspect-ratio:' + ratio +
+        ';border:0;display:block;' + marg + ';color-scheme:normal">\n' +
+        '</iframe>';
+      hint = 'Límdu í HTML-reit eða Code/HTML blokk í Payload. Hæðin fylgir breiddinni sjálfkrafa (aspect-ratio).';
+    } else if (tab === 'script') {
+      var attrs = cfg.changed(opts).map(function (kv) { return '  data-' + kv[0] + '="' + kv[1] + '"'; });
+      if (frameOpts.align !== 'left') attrs.push('  data-align="' + frameOpts.align + '"');
+      attrs.push('  data-max-width="' + frameOpts.maxw + 'px"');
+      code = '<script\n  src="' + base + 'embed.js"\n' + attrs.join('\n') + '>\n<\/script>';
+      hint = 'Aðeins ef Payload-uppsetningin leyfir <script>. Annars skaltu nota iframe.';
+    } else {
+      code = url;
+      hint = 'Bein slóð á græjuna, t.d. til að prófa stillingar.';
+    }
+    $('codeOut').textContent = code;
+    $('codeHint').textContent = hint;
+
+    /* Slóð síðunnar geymir stillingarnar svo hægt sé að deila henni */
+    var pq = new URLSearchParams(wq);
+    if (frameOpts.maxw !== FRAME_DEF.maxw) pq.set('maxw', frameOpts.maxw);
+    if (frameOpts.align !== FRAME_DEF.align) pq.set('align', frameOpts.align);
+    try {
+      history.replaceState(null, '', location.pathname + (pq.toString() ? '?' + pq : ''));
+    } catch (e) { /* t.d. file:// */ }
+  }
+
+  form.addEventListener('input', fromForm);
+  form.addEventListener('change', fromForm);
+  form.addEventListener('submit', function (e) { e.preventDefault(); });
+
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      tab = b.dataset.tab;
+      document.querySelectorAll('.tabs button').forEach(function (x) {
+        x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+      });
+      render();
+    });
+  });
+
+  $('copy').addEventListener('click', function (e) {
+    var btn = e.currentTarget, out = $('codeOut');
+    function done(text) {
+      btn.textContent = text;
+      setTimeout(function () { btn.textContent = 'Afrita kóða'; }, 1800);
+    }
+    function selectCode() {
+      var r = document.createRange();
+      r.selectNodeContents(out);
+      var s = getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+      done('Valið, ýttu á Ctrl+C');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(out.textContent).then(function () { done('Afritað'); }, selectCode);
+    } else selectCode();
+  });
+
+  /* Græjan fær stillingarnar í slóðinni við fyrstu hleðslu og aftur eftir hana */
+  var wq0 = widgetQuery();
+  frame.addEventListener('load', sendToPreview);
+  frame.src = 'widget/' + (wq0 ? '?' + wq0 : '');
+
+  toForm();
+  render();
+})();
+</script>
+</body>
+</html>
