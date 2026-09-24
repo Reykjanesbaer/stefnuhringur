@@ -1,7 +1,15 @@
 import React from 'react'
-import type { StefnuhringurBlock } from '@/payload-types'
+import type { Media, StefnuhringurBlock } from '@/payload-types'
 
 const WIDGET_URL = 'https://reykjanesbaer.github.io/stefnuhringur/widget/'
+
+/*
+ * Grunnslóð vefsins, notuð til að gera fulla https-slóð úr slóð í
+ * myndasafninu (Payload skilar oft „/api/media/file/barn.svg“).
+ */
+const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || ''
+
+const ICON_KEYS = ['born', 'vell', 'fjol', 'skil', 'kraf', 'vist'] as const
 
 /*
  * Rúmfræði græjunnar (sama og frame() í widget/config.js). Hæðin ræðst
@@ -46,6 +54,23 @@ function parseSize(n: number | null | undefined, unit: string | null | undefined
   return n >= min && n <= max ? `${n}${u}` : null
 }
 
+/*
+ * Full https-slóð á mynd úr myndasafni, eða null. Sömu reglur og parseIcon
+ * í widget/config.js: aðeins https og endingin .svg, .png eða .webp.
+ * Óinnfyllt tengsl (bara id) eru hunsuð; sækja þarf síðuna með depth ≥ 1.
+ */
+function mediaUrl(media: number | string | Media | null | undefined): string | null {
+  if (!media || typeof media !== 'object' || !media.url) return null
+  let u: URL
+  try {
+    u = SERVER_URL ? new URL(media.url, SERVER_URL) : new URL(media.url)
+  } catch {
+    return null
+  }
+  if (u.protocol !== 'https:') return null
+  return /\.(svg|png|webp)$/i.test(u.pathname) ? u.href : null
+}
+
 function inRange(n: number | null | undefined, min: number, max: number, def: number): number {
   return typeof n === 'number' && n >= min && n <= max ? n : def
 }
@@ -75,6 +100,9 @@ export const StefnuhringurComponent: React.FC<StefnuhringurBlock> = ({
   hamarksbreiddEining,
   jofnun = 'left',
   litir,
+  taknStaerd,
+  taknLitur,
+  ...rest
 }) => {
   const visible = inRange(synilegt, 50, 100, 50)
   const zoom = inRange(adrattur, 1.2, 2.5, 1.8)
@@ -106,6 +134,22 @@ export const StefnuhringurComponent: React.FC<StefnuhringurBlock> = ({
   if (thema && thema !== 'auto') params.set('theme', thema)
   if (gegnsaer) params.set('bg', 'transparent')
   if (radius !== 14) params.set('radius', String(radius))
+
+  /* Eigin tákn: fela, eða full https-slóð úr myndasafninu */
+  const icons = rest as Record<string, unknown>
+  const cap = (k: string) => k[0].toUpperCase() + k.slice(1)
+  for (const key of ICON_KEYS) {
+    if (icons[`fela${cap(key)}`] === true) {
+      params.set(`icon-${key}`, 'none')
+      continue
+    }
+    const url = mediaUrl(icons[`takn${cap(key)}`] as Media | number | string | null | undefined)
+    if (url) params.set(`icon-${key}`, url)
+  }
+  const iconSize = inRange(taknStaerd, 60, 140, 100)
+  if (iconSize !== 100) params.set('iconsize', String(iconSize))
+  const tint = parseColor(taknLitur)
+  if (tint) params.set('icontint', tint)
 
   /* Litir: aðeins gildir litir sem víkja frá sjálfgefnum */
   const colors = (litir ?? {}) as Record<string, string | null | undefined>
