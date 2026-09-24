@@ -13,7 +13,8 @@
  * Skriftan býr til iframe á staðnum þar sem hún stendur. Hæðin fylgir
  * breiddinni (aspect-ratio) og græjan staðfestir hana með postMessage, svo
  * ekkert autt svæði verður eftir og ekkert klippist af. Allar data-*
- * færibreytur eru sendar áfram á græjuna (data-speed -> ?speed=...), nema
+ * færibreytur eru sendar áfram á græjuna (data-speed -> ?speed=...,
+ * data-icon-born -> ?icon-born=...), nema
  * data-align, data-width og data-max-width sem stýra aðeins iframe-inum.
  *
  *   data-width      1–100% eða 200–2000px, sjálfgefið 100%
@@ -37,11 +38,10 @@
   for (var i = 0; i < script.attributes.length; i++) {
     var attr = script.attributes[i];
     if (attr.name.indexOf('data-') !== 0) continue;
-    var key = attr.name.slice(5).replace(/-([a-z])/g, function (m, c) {
-      return c.toUpperCase();
-    });
+    /* data-icon-born → icon-born: nafnið helst óbreytt (lágstafir, bandstrik) */
+    var key = attr.name.slice(5);
     /* Þessar stýra umgjörðinni (iframe-inum), ekki græjunni — ekki sendar áfram */
-    if (key === 'width' || key === 'maxWidth' || key === 'align' || key === 'title') continue;
+    if (key === 'width' || key === 'max-width' || key === 'align' || key === 'title') continue;
     params.set(key, attr.value);
   }
   params.set('frameId', frameId);
