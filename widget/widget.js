@@ -6,7 +6,8 @@
  *   crop (clipPath)         klippir hringinn við klippilínuna
  *   └─ cam1                 aðdráttur
  *      ├─ ring              snúningur: fleygar, táknbólur, heimsmarkmið
- *      ├─ glyphs            hvít tákn, fylgja bólunum en alltaf upprétt
+ *      ├─ glyphs            tákn, fylgja bólunum en alltaf upprétt; eigin
+ *      │                    myndir (?icon-born=…) með <image>, aldrei innerHTML
  *      └─ labels            heiti og lýsingar, alltaf upprétt og lárétt
  *   cam2 (ekki klippt)      sami aðdráttur
  *   └─ hub                  hvít miðja með framtíðarsýn, snýst aldrei
@@ -96,6 +97,7 @@
   var sh = $('sh'), svg = $('svg'), cam1 = $('cam1'), cam2 = $('cam2');
   var ringG = $('ring'), glyphsG = $('glyphs'), labelsG = $('labels');
   var hubG = $('hub'), cropRect = $('cropRect'), live = $('live');
+  var defs = svg.querySelector('defs');
   var segs = [];
 
   function drawTiles(parent, s) {
@@ -144,7 +146,8 @@
       var tiles = el('g', { 'class': 'tiles' }, g);
       drawTiles(tiles, s);
 
-      var glyph = el('image', { href: s.icon, width: G.GLYPH, height: G.GLYPH, 'class': 'glyph' }, glyphsG);
+      /* Innihald táknsins er sett í applyIcons(); hér er aðeins hópurinn sem hreyfist */
+      var glyph = el('g', { 'class': 'glyph' }, glyphsG);
 
       /* Heiti og lýsing — staðsett í hverjum ramma, alltaf upprétt */
       var lg = el('g', { 'class': 'lbl' }, labelsG);
@@ -166,7 +169,7 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleZoom(i); }
       });
 
-      segs.push({ g: g, shape: shape, tiles: tiles, glyph: glyph, lg: lg, tg: tg, dg: dg, tH: tH, dH: dH, open: 0, dim: false });
+      segs.push({ g: g, shape: shape, tiles: tiles, glyph: glyph, iconSig: null, lg: lg, tg: tg, dg: dg, tH: tH, dH: dH, open: 0, dim: false });
     });
 
     hubG.setAttribute('class', 'hub');
@@ -231,10 +234,10 @@
     else root.removeAttribute('data-bg');
     root.style.setProperty('--sh-radius', opts.radius + 'px');
     applyColors();
+    applyIcons();
 
     segs.forEach(function (S) {
       S.tiles.style.display = opts.sdg ? '' : 'none';
-      S.glyph.style.display = opts.icons ? '' : 'none';
     });
 
     /* Ný upphafsstaða: hringurinn snýst mjúklega þangað, ekkert stökk */
@@ -261,6 +264,63 @@
     root.style.setProperty('--sh-hub-text', '#' + opts.hubtext);
     if (opts.bgcolor && opts.bg !== 'transparent') root.style.setProperty('--sh-bg', '#' + opts.bgcolor);
     else root.style.removeProperty('--sh-bg');
+  }
+
+  /*
+   * Tákn. Eigin myndir eru teiknaðar með <image href>, aldrei með því að
+   * sækja SVG-kóðann og setja hann inn: <image> keyrir engar skriftur úr
+   * ytri SVG. Slóðirnar eru þegar staðfestar í config.js (parseIcon).
+   *
+   * icontint: myndin verður alfa-maski og rect í litnum er fyllt í gegnum
+   * hann, svo einlit tákn (t.d. svört SVG) fá hvaða lit sem er. Án litunar
+   * birtist myndin óbreytt, svo marglita PNG virka líka.
+   */
+  function applyIcons() {
+    SEGMENTS.forEach(function (s, i) {
+      var S = segs[i], v = opts['icon-' + s.key];
+      var hidden = v === 'none' || !opts.icons;
+      S.glyph.style.display = hidden ? 'none' : '';
+      drawIcon(S, s, v && v !== 'none' ? v : s.icon);
+    });
+  }
+
+  function drawIcon(S, s, href) {
+    var size = G.GLYPH * opts.iconsize / 100, h = size / 2;
+    var tint = opts.icontint;
+    var sig = href + '|' + tint + '|' + size;
+    if (sig === S.iconSig) return;
+    S.iconSig = sig;
+
+    while (S.glyph.firstChild) S.glyph.removeChild(S.glyph.firstChild);
+    if (S.mask) { S.mask.parentNode.removeChild(S.mask); S.mask = null; }
+
+    var box = { x: f2(-h), y: f2(-h), width: f2(size), height: f2(size) };
+    var img;
+    if (tint === 'none') {
+      img = el('image', { href: href, x: box.x, y: box.y, width: box.width, height: box.height,
+        preserveAspectRatio: 'xMidYMid meet' }, S.glyph);
+    } else {
+      var id = 'glyph-mask-' + s.key;
+      S.mask = el('mask', { id: id, 'mask-type': 'alpha', maskUnits: 'userSpaceOnUse',
+        maskContentUnits: 'userSpaceOnUse', x: box.x, y: box.y, width: box.width, height: box.height }, defs);
+      img = el('image', { href: href, x: box.x, y: box.y, width: box.width, height: box.height,
+        preserveAspectRatio: 'xMidYMid meet' }, S.mask);
+      el('rect', { x: box.x, y: box.y, width: box.width, height: box.height,
+        fill: '#' + tint, mask: 'url(#' + id + ')' }, S.glyph);
+    }
+
+    /* Mynd sem hleðst ekki: sjálfgefna táknið í staðinn */
+    if (href !== s.icon) {
+      img.addEventListener('error', function () {
+        if (window.console && console.warn) console.warn('[stefnuhringur] Ekki tókst að hlaða tákni:', href);
+        img.setAttribute('href', s.icon);
+        if (window.parent !== window) {
+          try {
+            window.parent.postMessage({ type: 'stefnuhringur:iconerror', id: frameId, key: s.key, url: href }, '*');
+          } catch (e) { /* hunsum */ }
+        }
+      });
+    }
   }
 
   function setZoom(i) {
@@ -441,7 +501,6 @@
     if (clipH !== st.clipH) { cropRect.setAttribute('height', clipH); st.clipH = clipH; }
 
     var zoomed = st.zoomed !== null;
-    var half = G.GLYPH / 2;
     SEGMENTS.forEach(function (s, i) {
       var S = segs[i], a = s.angle + st.rotation;
       var p = pt(G.LABEL_R, a);
@@ -452,8 +511,7 @@
       S.dg.setAttribute('opacity', S.open.toFixed(3));
 
       var gp = pt(G.BUB_RAD, a + G.BUB_OFF);
-      S.glyph.setAttribute('x', f2(gp[0] - half));
-      S.glyph.setAttribute('y', f2(gp[1] - half));
+      S.glyph.setAttribute('transform', 'translate(' + f2(gp[0]) + ' ' + f2(gp[1]) + ')');
 
       var dim = zoomed && st.zoomed !== i;
       if (dim !== S.dim) {
