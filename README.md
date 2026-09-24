@@ -29,7 +29,7 @@ sem er, þar á meðal í Payload CMS.
   title="Stefnuhringur Reykjanesbæjar"
   loading="lazy"
   scrolling="no"
-  style="width:100%;max-width:640px;aspect-ratio:636 / 428;border:0;display:block;margin-left:0;margin-right:auto;color-scheme:normal">
+  style="width:100%;max-width:min(640px,100%);aspect-ratio:636 / 428;border:0;display:block;margin-left:0;margin-right:auto;color-scheme:normal">
 </iframe>
 ```
 
@@ -49,6 +49,16 @@ kóðann þaðan frekar en að breyta honum í höndunum:
 
 Upp að um 67 % ræður neðri brún miðjunnar hæðinni, því hún sést alltaf öll.
 
+Breiddin er `width` og hámarksbreiddin `max-width`, bæði í `%` eða `px`.
+Hámarksbreiddin er alltaf höfð sem `min(<gildi>, 100%)` (eða `100%` ef
+ekkert hámark er), svo hringurinn flæðir aldrei út fyrir á síma:
+
+| Dæmi | `style` |
+| --- | --- |
+| Full breidd, mest 640 px (sjálfgefið) | `width:100%;max-width:min(640px,100%)` |
+| 480 px, ekkert hámark | `width:480px;max-width:100%` |
+| 80 %, mest 900 px | `width:80%;max-width:min(900px,100%)` |
+
 Spássíurnar ráða staðsetningunni á síðunni: `margin-left:0;margin-right:auto`
 setur hringinn vinstra megin, `margin-left:auto;margin-right:auto` í miðju og
 `margin-left:auto;margin-right:0` hægra megin.
@@ -62,19 +72,28 @@ stillir hæðina sjálf:
 <script
   src="https://reykjanesbaer.github.io/stefnuhringur/embed.js"
   data-speed="90"
-  data-visible="60"
+  data-born="BF4C37"
   data-align="center"
-  data-max-width="640px">
+  data-width="80%"
+  data-max-width="900px">
 </script>
 ```
 
 Allar `data-*` færibreytur samsvara færibreytunum í töflunni hér að neðan
 (`data-speed` → `?speed=`).
 
-Tvær eru undantekning: **`data-align`** (`left`, `center`, `right` —
-sjálfgefið `left`) og **`data-max-width`** (sjálfgefið `640px`) eru ekki
-sendar áfram á græjuna, heldur stýra þær aðeins iframe-inum sjálfum,
-það er staðsetningu hans á síðunni og hámarksbreidd.
+Þrjár eru undantekning. Þær eru ekki sendar áfram á græjuna, heldur
+stýra þær aðeins iframe-inum sjálfum:
+
+| Eigind | Gildi | Sjálfgefið | Lýsing |
+| --- | --- | --- | --- |
+| `data-align` | `left`, `center`, `right` | `left` | Staðsetning á síðunni |
+| `data-width` | `1`–`100%` eða `200`–`2000px` | `100%` | Breidd |
+| `data-max-width` | `1`–`100%`, `200`–`2000px` eða `none` | `640px` | Hámarksbreidd, alltaf klemmd við 100 % |
+
+Tala án einingar er px og gildi utan marka falla á sjálfgefið. `embed.js`
+staðfestir breiddirnar með sama falli og kóðasmiðurinn (`parseSize` í
+[`widget/config.js`](widget/config.js)).
 
 > **Ath.** Margar Payload-uppsetningar hreinsa `<script>` úr ritlinum
 > (`lexical`/`slate` sanitizing). Ef skriftan skilar engu skaltu nota
@@ -147,6 +166,26 @@ Allar stillingar eru færibreytur í slóðinni. Ógild gildi (utan bils eða
 | `bg` | `transparent` | — | Gegnsær bakgrunnur |
 | `radius` | `0`–`40` | `14` | Hornarúnnun í px |
 
+### Litir
+
+Allir litir eru hex án `#` (en `#` og `%23` eru líka leyfð, og hástafir
+skipta ekki máli). Ógildur litur fellur á sjálfgefið. Heimsmarkmiðareitir
+halda alltaf opinberu litunum.
+
+| Færibreyta | Sjálfgefið | Litar |
+| --- | --- | --- |
+| `born` | `BF4C37` | Börnin mikilvægust (fleygur og táknbóla) |
+| `vell` | `D69348` | Vellíðan íbúa |
+| `fjol` | `823E92` | Fjölbreytt störf |
+| `skil` | `5BA1B4` | Skilvirk þjónusta |
+| `kraf` | `2760AB` | Kraftur fjölbreytileikans |
+| `vist` | `81BA50` | Vistvænt samfélag |
+| `text` | `FFFFFF` | Heiti og lýsingar á áherslum |
+| `hubbg` | `FFFFFF` | Bakgrunnur miðju |
+| `hubtitle` | `2760AB` | „Framtíðarsýn“ |
+| `hubtext` | `6D6E70` | Texti miðju |
+| `bgcolor` | tómt = eftir þema | Bakgrunnur græju. Yfirskrifar `theme`, hunsað ef `bg=transparent` |
+
 ### Áherslur
 
 | Lykill | Áhersla | Heimsmarkmið |
@@ -165,6 +204,8 @@ widget/?speed=60&dir=cw
 widget/?visible=100&desc=0
 widget/?start=vist&speed=0
 widget/?bg=transparent&theme=dark&radius=0
+widget/?born=123456&hubbg=FFE9A8
+widget/?bgcolor=1E2A33&text=FFFFFF&hubtitle=%23BF4C37
 ```
 
 ### Hvernig hreyfingin virkar
@@ -184,7 +225,7 @@ ekkert hreyfist, þegar hringurinn er utan skjás eða þegar flipinn er falinn.
 
 ## Efni
 
-Allir textar, litir, tákn og heimsmarkmið hverrar áherslu eru í einni skrá,
+Allir textar, sjálfgefnir litir, tákn og heimsmarkmið hverrar áherslu eru í einni skrá,
 [`widget/content.js`](widget/content.js). Til að breyta orðalagi, lit eða
 heimsmarkmiðum þarf aðeins að breyta henni. Textarnir eru orðréttir úr
 upprunalegu myndinni, líka bandstrikuðu línuskiptin í miðjunni.
