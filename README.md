@@ -165,6 +165,14 @@ Allar stillingar eru færibreytur í slóðinni. Ógild gildi (utan bils eða
 | `theme` | `auto`, `light`, `dark` | `auto` | Litaþema |
 | `bg` | `transparent` | — | Gegnsær bakgrunnur |
 | `radius` | `0`–`40` | `14` | Hornarúnnun í px |
+| `icon-born` | slóð eða `none` | — | Tákn fyrir Börnin mikilvægust |
+| `icon-vell` | slóð eða `none` | — | Tákn fyrir Vellíðan íbúa |
+| `icon-fjol` | slóð eða `none` | — | Tákn fyrir Fjölbreytt störf |
+| `icon-skil` | slóð eða `none` | — | Tákn fyrir Skilvirk þjónusta |
+| `icon-kraf` | slóð eða `none` | — | Tákn fyrir Kraftur fjölbreytileikans |
+| `icon-vist` | slóð eða `none` | — | Tákn fyrir Vistvænt samfélag |
+| `iconsize` | `60`–`140` | `100` | Stærð allra tákna (%) |
+| `icontint` | hex án `#`, eða `none` | `none` | Litar öll tákn í einum lit |
 
 ### Litir
 
@@ -206,6 +214,8 @@ widget/?start=vist&speed=0
 widget/?bg=transparent&theme=dark&radius=0
 widget/?born=123456&hubbg=FFE9A8
 widget/?bgcolor=1E2A33&text=FFFFFF&hubtitle=%23BF4C37
+widget/?icon-born=https%3A%2F%2Fwww.reykjanesbaer.is%2Fmedia%2Fbarn.svg&icontint=FFFFFF
+widget/?icon-vist=none&iconsize=120
 ```
 
 ### Hvernig hreyfingin virkar
@@ -232,6 +242,59 @@ upprunalegu myndinni, líka bandstrikuðu línuskiptin í miðjunni.
 
 Íslensk heiti og litir allra 17 heimsmarkmiðanna eru í
 [`widget/config.js`](widget/config.js) (`SDG`).
+
+---
+
+## Eigin tákn
+
+Táknunum sex má skipta út fyrir eigin SVG-, PNG- eða WebP-myndir með
+`icon-<lykill>=<slóð>`, eða fela þau með `icon-<lykill>=none` (bólan helst).
+Í kóðasmiðnum er þetta í hlutanum **Tákn**, og í Payload-blokkinni í hópnum
+**Tákn**.
+
+### Kröfur til myndarinnar
+
+- **Ferningslaga** og með **gegnsæjum bakgrunni**. Myndin er skölud inn í
+  bóluna án þess að teygjast (`preserveAspectRatio="xMidYMid meet"`).
+- **Helst einlitt SVG.** Þá getur `icontint` litað það í hvaða lit sem er, t.d.
+  svart tákn → `icontint=FFFFFF` fyrir hvítt.
+- **PNG að lágmarki 256×256 px**, svo það haldist skarpt á háupplausnarskjám
+  og í aðdrætti.
+- Marglita myndir: hafðu `icontint=none` (sjálfgefið), þá birtast þær óbreyttar.
+
+### Hvaða slóðir eru leyfðar
+
+- `https://`-slóðir, t.d. úr myndasafni Payload
+  (`https://www.reykjanesbaer.is/api/media/file/barn.svg`).
+- Slóðir innan repósins, t.d. `icons/minn.svg` (miðað við `widget/`) eða
+  `/stefnuhringur/widget/icons/minn.svg`.
+- Endingin verður að vera `.svg`, `.png` eða `.webp`.
+
+Öllu öðru er hafnað (`javascript:`, `data:`, `http://`, `//hýsill`, `.gif` …)
+og sjálfgefna táknið notað. Ef mynd hleðst ekki (t.d. 404) birtist sjálfgefna
+táknið í staðinn og `console.warn` skrifar slóðina.
+
+**Öryggi.** Myndirnar eru teiknaðar með `<image href="…">` inni í SVG-inu.
+SVG-kóðinn er aldrei sóttur og settur inn á síðuna, svo skriftur í ytri SVG
+keyra ekki.
+
+### Úr myndasafni Payload
+
+1. Hladdu myndinni upp í **Media** í Payload.
+2. Í blokkinni: opnaðu **Tákn** og veldu myndina við áhersluna. Blokkin býr til
+   fulla slóð sjálf. Sjá [`payload/README.md`](payload/README.md) um
+   `NEXT_PUBLIC_SERVER_URL`.
+3. Í HTML-reit: afritaðu slóð myndarinnar úr Media, límdu hana í
+   kóðasmiðinn undir **Tákn** og afritaðu kóðann.
+
+### Að skipta um sjálfgefin tákn
+
+Sjálfgefnu táknin eru skrár í [`widget/icons/`](widget/icons/) (`born.svg`,
+`vell.svg`, `fjol.svg`, `skil.svg`, `kraf.svg`, `vist.svg`) og
+[`widget/content.js`](widget/content.js) vísar á þær (`icon`). Til að skipta
+um sjálfgefið tákn fyrir alla: settu nýja skrá með sama nafni í möppuna, eða
+nýja skrá og uppfærðu `icon` í `content.js`. Sjálfgefnu táknin eru hvít á
+gegnsæjum grunni.
 
 ---
 

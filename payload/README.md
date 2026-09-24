@@ -102,6 +102,31 @@ frame-src https://reykjanesbaer.github.io;
 | Hámarksbreidd | Tala + eining: 1–100 % eða 200–2000 px (sjálfgefið 640 px). Tómt = ekkert hámark |
 | Staðsetning á síðu | Vinstri, miðja eða hægri |
 | Litir | 11 valfrjálsir hex-litir (sjá neðar). Tómt = upprunalegi liturinn |
+| Tákn (lokað sjálfgefið) | Mynd úr myndasafni og „Fela tákn“ á hverja áherslu, stærð (60–140 %) og litur |
+
+### Tákn
+
+Hópurinn **Tákn** er lokaður sjálfgefið. Fyrir hverja áherslu er:
+
+- **upload-reitur** (`relationTo: 'media'`), sem leyfir aðeins SVG, PNG og
+  WebP. Tómt = sjálfgefið tákn;
+- **„Fela tákn“**, sem felur táknið en heldur bólunni.
+
+Auk þess **Stærð tákna** (60–140 %, sjálfgefið 100) og **Litur tákna** (hex,
+litar öll tákn í einum lit; tómt = óbreytt, svo marglita myndir haldast).
+
+`Component.tsx` býr til fulla https-slóð úr media-skjalinu og setur hana í
+`icon-<lykill>`. Tvennt þarf að vera í lagi:
+
+- **`NEXT_PUBLIC_SERVER_URL`** þarf að vera stillt á opinbera slóð vefsins
+  (t.d. `https://www.reykjanesbaer.is`), því Payload skilar yfirleitt afstæðri
+  slóð (`/api/media/file/barn.svg`). Án hennar er afstæðum slóðum sleppt og
+  sjálfgefna táknið birtist.
+- Síðan þarf að vera sótt með **`depth` ≥ 1** (sjálfgefið í Payload), svo
+  media-skjalið sé innfyllt en ekki bara id.
+
+Myndirnar eru sóttar af `reykjanesbaer.github.io` í `<image>`, svo engar
+CORS-stillingar þarf á myndasafninu.
 
 ### Litir
 
