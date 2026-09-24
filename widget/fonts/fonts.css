@@ -1,0 +1,65 @@
+/*
+ * Stefnuhringur — letur.
+ *
+ * Græjan notar breytuna --sh-font (widget.css):
+ *   "Circular Std", "Figtree", system-ui, …
+ *
+ * CIRCULAR STD (letur Reykjanesbæjar, leyfisskylt frá Lineto)
+ * Til að virkja: settu vefútgáfur í þessa möppu og taktu athugasemdina af
+ * @font-face-reglunum hér fyrir neðan.
+ *
+ *   CircularStd-Book.woff2   → texti í miðju og lýsingar (500)
+ *   CircularStd-Bold.woff2   → tölur á heimsmarkmiðareitum (700)
+ *   CircularStd-Black.woff2  → heiti áherslna og „Framtíðarsýn“ (800)
+ *
+ * Breyting úr .otf:  pip install fonttools brotli
+ *   fonttools ttLib.woff2 compress CircularStd-Book.otf
+ *
+ * Þar til þær eru komnar er Figtree (SIL OFL 1.1) notað, sjá OFL-Figtree.txt.
+ */
+
+/*
+@font-face {
+  font-family: "Circular Std";
+  src: url("CircularStd-Book.woff2") format("woff2");
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Circular Std";
+  src: url("CircularStd-Bold.woff2") format("woff2");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Circular Std";
+  src: url("CircularStd-Black.woff2") format("woff2");
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+@font-face {
+  font-family: "Figtree";
+  src: url("figtree-500.woff2") format("woff2");
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Figtree";
+  src: url("figtree-700.woff2") format("woff2");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Figtree";
+  src: url("figtree-800.woff2") format("woff2");
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}
