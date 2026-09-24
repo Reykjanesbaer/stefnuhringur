@@ -12,7 +12,8 @@
   --sh-focus: #1F2629;
   --sh-radius: 14px;
 
-  --sh-hub-bg: #FFFFFF;      /* miðjan er alltaf hvít, líka í dökku þema */
+  /* Sjálfgefnir litir; widget.js yfirskrifar þá út frá content.js og slóð */
+  --sh-hub-bg: #FFFFFF;      /* miðjan er hvít, líka í dökku þema */
   --sh-hub-title: #2760AB;
   --sh-hub-text: #6D6E70;
   --sh-label: #FFFFFF;

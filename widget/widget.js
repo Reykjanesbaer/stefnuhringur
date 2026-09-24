@@ -166,7 +166,7 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleZoom(i); }
       });
 
-      segs.push({ g: g, tiles: tiles, glyph: glyph, lg: lg, tg: tg, dg: dg, tH: tH, dH: dH, open: 0, dim: false });
+      segs.push({ g: g, shape: shape, tiles: tiles, glyph: glyph, lg: lg, tg: tg, dg: dg, tH: tH, dH: dH, open: 0, dim: false });
     });
 
     hubG.setAttribute('class', 'hub');
@@ -230,6 +230,7 @@
     if (opts.bg === 'transparent') root.setAttribute('data-bg', 'transparent');
     else root.removeAttribute('data-bg');
     root.style.setProperty('--sh-radius', opts.radius + 'px');
+    applyColors();
 
     segs.forEach(function (S) {
       S.tiles.style.display = opts.sdg ? '' : 'none';
@@ -246,6 +247,20 @@
     draw();
     kick();
     postHeight();
+  }
+
+  /*
+   * Litir úr slóð (?born=, ?hubbg= …). Þeir eru þegar staðfestir í
+   * config.js. bgcolor yfirskrifar þemað en víkur fyrir bg=transparent.
+   */
+  function applyColors() {
+    segs.forEach(function (S, i) { S.shape.setAttribute('fill', '#' + opts[SEGMENTS[i].key]); });
+    root.style.setProperty('--sh-label', '#' + opts.text);
+    root.style.setProperty('--sh-hub-bg', '#' + opts.hubbg);
+    root.style.setProperty('--sh-hub-title', '#' + opts.hubtitle);
+    root.style.setProperty('--sh-hub-text', '#' + opts.hubtext);
+    if (opts.bgcolor && opts.bg !== 'transparent') root.style.setProperty('--sh-bg', '#' + opts.bgcolor);
+    else root.style.removeProperty('--sh-bg');
   }
 
   function setZoom(i) {
