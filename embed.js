@@ -76,7 +76,9 @@
       if (data.id && data.id !== frameId) return;
       if (event.source !== iframe.contentWindow) return;
       var h = parseInt(data.height, 10);
-      if (isFinite(h) && h > 0 && h < 3000) iframe.style.height = h + 'px';
+      if (!isFinite(h) || h <= 0 || h >= 3000) return;
+      /* aspect-ratio er nákvæmara (brot úr px); aðeins gripið inn ef það bregst */
+      if (Math.abs(h - iframe.getBoundingClientRect().height) > 1) iframe.style.height = h + 'px';
     });
   });
 
