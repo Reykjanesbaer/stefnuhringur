@@ -22,10 +22,13 @@
     <svg id="svg" focusable="false">
       <defs><clipPath id="crop"><rect id="cropRect"/></clipPath></defs>
       <g clip-path="url(#crop)">
-        <g id="cam1"><g id="ring"></g><g id="glyphs" aria-hidden="true"></g><g id="labels" aria-hidden="true"></g></g>
+        <g id="cam1"><g id="ring"></g><g id="glyphs" aria-hidden="true"></g></g>
       </g>
       <g id="cam2"><g id="hub" aria-hidden="true"></g></g>
     </svg>
+    <!-- Heiti og lýsingar sem HTML ofan á SVG-inu: SVG-texti smellist á heila
+         pixla lóðrétt í Chrome/Edge og titrar á meðan hringurinn snýst. -->
+    <div class="lbl-layer" id="lblLayer" aria-hidden="true"><div class="lbl-stage" id="lblStage"></div></div>
     <div class="sr-only" aria-live="polite" id="live"></div>
   </div>
 

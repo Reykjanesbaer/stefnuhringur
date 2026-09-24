@@ -69,7 +69,7 @@ html, body {
 /* ------------------------------------------------------------------ */
 
 .seg { cursor: pointer; outline: none; }
-.seg, .lbl, .glyph { transition: opacity .35s; }
+.seg, .hl, .glyph { transition: opacity .35s; }
 .seg:hover .shape { filter: brightness(1.06); }
 
 /* Sýnilegur fókushringur fyrir lyklaborð */
@@ -81,10 +81,35 @@ html, body {
 
 .dim { opacity: .3; }
 
-.lbl, .glyph, .tiles { pointer-events: none; }
-.lbl text { fill: var(--sh-label); font-family: var(--sh-font); }
-.lbl .t { font-weight: 800; font-size: 18px; }
-.lbl .d { font-weight: 500; font-size: 8.2px; }
+.glyph { pointer-events: none; }
+
+/* ------------------------------------------------------------------ */
+/* Heiti og lýsingar (HTML-lag ofan á SVG)                             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * HTML-texti hreyfist mjúklega um brot úr pixli; SVG-texti gerir það ekki.
+ * lbl-stage er kvarðað svo stærðir hér séu í SVG-einingum, og fylgir sömu
+ * myndavél og SVG-ið (widget.js).
+ */
+.lbl-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.hl { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+/* Samsett lag á meðan hringurinn hreyfist; tekið af í kyrrum aðdrætti svo
+   textinn teiknist skarpur í stækkun */
+.hl.moving { will-change: transform; }
+.hl-t, .hl-d {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--sh-label);
+  font-family: var(--sh-font);
+}
+.hl-t { font-weight: 800; font-size: 18px; line-height: 19px; }
+.hl-d { font-weight: 500; font-size: 8.2px; line-height: 10.4px; }
 
 .tile text { fill: #FFFFFF; font-family: var(--sh-font); }
 
@@ -123,5 +148,5 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seg, .lbl, .glyph { transition: none; }
+  .seg, .hl, .glyph { transition: none; }
 }
