@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="#fff" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+  <g id="leaf">
+    <path d="M40 14c16-5 32-6 44-2 2 14-3 27-15 33-11 5-22 1-28-8-4-6-4-15-1-23Z" stroke="none"/>
+    <path d="M60 29 38 50" fill="none" stroke-width="6.5"/>
+  </g>
+  <use href="#leaf" transform="rotate(120 62 64)"/>
+  <use href="#leaf" transform="rotate(240 62 64)"/>
+</svg>
