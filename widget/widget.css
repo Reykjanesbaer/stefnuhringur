@@ -1,0 +1,126 @@
+/*
+ * Stefnuhringur — útlit.
+ *
+ * Letrið er ein breyta, --sh-font. Leturskrárnar sjálfar eru skilgreindar í
+ * fonts/fonts.css; þar er skipt um letur.
+ */
+
+:root {
+  --sh-font: "Circular Std", "Figtree", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Arial, sans-serif;
+  --sh-bg: #FFFFFF;
+  --sh-focus: #1F2629;
+  --sh-radius: 14px;
+
+  --sh-hub-bg: #FFFFFF;      /* miðjan er alltaf hvít, líka í dökku þema */
+  --sh-hub-title: #2760AB;
+  --sh-hub-text: #6D6E70;
+  --sh-label: #FFFFFF;
+}
+
+/* Dökkt þema — sjálfvirkt eftir stillingum notanda */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sh-bg: #2B2B2B;
+    --sh-focus: #FFFFFF;
+  }
+}
+
+/* Dökkt þema — þvingað með ?theme=dark */
+:root[data-theme="dark"] {
+  --sh-bg: #2B2B2B;
+  --sh-focus: #FFFFFF;
+}
+
+/* Gegnsær bakgrunnur — fellur inn í síðuna sem græjan er embedduð á */
+:root[data-bg="transparent"] { --sh-bg: transparent; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.sh {
+  position: relative;
+  overflow: hidden;
+  background: var(--sh-bg);
+  border-radius: var(--sh-radius);
+  font-family: var(--sh-font);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sh svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hlutar                                                              */
+/* ------------------------------------------------------------------ */
+
+.seg { cursor: pointer; outline: none; }
+.seg, .lbl, .glyph { transition: opacity .35s; }
+.seg:hover .shape { filter: brightness(1.06); }
+
+/* Sýnilegur fókushringur fyrir lyklaborð */
+.seg:focus-visible .shape {
+  stroke: var(--sh-focus);
+  stroke-width: 3;
+  paint-order: stroke;
+}
+
+.dim { opacity: .3; }
+
+.lbl, .glyph, .tiles { pointer-events: none; }
+.lbl text { fill: var(--sh-label); font-family: var(--sh-font); }
+.lbl .t { font-weight: 800; font-size: 18px; }
+.lbl .d { font-weight: 500; font-size: 8.2px; }
+
+.tile text { fill: #FFFFFF; font-family: var(--sh-font); }
+
+/* ------------------------------------------------------------------ */
+/* Miðja                                                               */
+/* ------------------------------------------------------------------ */
+
+.hub { cursor: pointer; }
+.hub circle { fill: var(--sh-hub-bg); }
+.hub-t { font-family: var(--sh-font); font-weight: 800; font-size: 16.5px; fill: var(--sh-hub-title); }
+.hub-d { font-family: var(--sh-font); font-weight: 500; font-size: 8.1px; fill: var(--sh-hub-text); }
+
+/* ------------------------------------------------------------------ */
+/* Skjálesarar                                                         */
+/* ------------------------------------------------------------------ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Þröngt pláss og minni hreyfing                                      */
+/* ------------------------------------------------------------------ */
+
+/* Á mjóum skjá er brightness-sían óþörf og dýr í hverjum ramma */
+@media (hover: none) {
+  .seg:hover .shape { filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seg, .lbl, .glyph { transition: none; }
+}
