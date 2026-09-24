@@ -98,8 +98,34 @@ frame-src https://reykjanesbaer.github.io;
 | Litaþema | Ljóst (sjálfgefið í blokkinni), dökkt eða eftir stillingum notanda |
 | Gegnsær bakgrunnur | Fellir hringinn inn í síðuna |
 | Hornarúnnun | 0–40 px |
-| Hámarksbreidd | 280–1000 px (sjálfgefið 640) |
+| Breidd | Tala + eining: 1–100 % eða 200–2000 px (sjálfgefið 100 %) |
+| Hámarksbreidd | Tala + eining: 1–100 % eða 200–2000 px (sjálfgefið 640 px). Tómt = ekkert hámark |
 | Staðsetning á síðu | Vinstri, miðja eða hægri |
+| Litir | 11 valfrjálsir hex-litir (sjá neðar). Tómt = upprunalegi liturinn |
+
+### Litir
+
+Reitahópurinn **Litir** tekur hex-lit án `#` (en `#` er líka leyft), t.d.
+`BF4C37`. Ógildur litur er stöðvaður við vistun. Aðeins litir sem víkja frá
+upprunalegu litunum fara í slóð græjunnar.
+
+| Reitur | Hvað hann litar | Upprunalegt |
+| --- | --- | --- |
+| `born` … `vist` | Fleygur og táknbóla hverrar áherslu | litir myndarinnar |
+| `text` | Heiti og lýsingar á áherslum | `FFFFFF` |
+| `hubbg` | Bakgrunnur miðju | `FFFFFF` |
+| `hubtitle` | „Framtíðarsýn“ | `2760AB` |
+| `hubtext` | Texti miðju | `6D6E70` |
+| `bgcolor` | Bakgrunnur græju; yfirskrifar þema, hunsað ef gegnsætt | eftir þema |
+
+Heimsmarkmiðareitir halda alltaf opinberu litunum.
+
+### Breidd
+
+Breidd og hámarksbreidd fara á `style` iframe-sins, ekki í slóð græjunnar.
+Hámarksbreiddin er alltaf klemmd, `max-width: min(<gildi>, 100%)` (eða
+`100%` ef ekkert hámark), svo hringurinn flæðir aldrei út fyrir á síma.
+Hæðin fylgir breiddinni gegnum `aspect-ratio`.
 
 ## Hæð
 

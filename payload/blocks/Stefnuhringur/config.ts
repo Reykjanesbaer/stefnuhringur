@@ -1,4 +1,4 @@
-import type { Block } from 'payload'
+import type { Block, TextField } from 'payload'
 
 /**
  * Stefnuhringur — fellir stefnuhring Reykjanesbæjar inn á síðu.
@@ -9,6 +9,39 @@ import type { Block } from 'payload'
  * Lyklarnir í „Upphafsstaða“ verða að haldast í takt við `key` í
  * widget/content.js.
  */
+const UNITS = [
+  { label: '%', value: '%' },
+  { label: 'px', value: 'px' },
+]
+
+/* Sömu mörk og parseSize í widget/config.js */
+function sizeValidate(unitField: string, optional: boolean) {
+  return (value: number | null | undefined, { siblingData }: { siblingData: Record<string, unknown> }) => {
+    if (value === null || value === undefined) {
+      return optional ? true : 'Settu inn breidd.'
+    }
+    const unit = siblingData?.[unitField] === '%' ? '%' : 'px'
+    const [min, max] = unit === '%' ? [1, 100] : [200, 2000]
+    return value >= min && value <= max ? true : `Gildið verður að vera ${min}–${max} ${unit}.`
+  }
+}
+
+/* Valfrjáls hex-litur; tómt = upprunalegi liturinn */
+function colorField(name: string, label: string, placeholder: string): TextField {
+  return {
+    name,
+    type: 'text',
+    label,
+    admin: { placeholder, width: '50%' },
+    validate: (value: string | null | undefined) => {
+      if (!value) return true
+      return /^(#|%23)?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim())
+        ? true
+        : 'Hex-litur, t.d. BF4C37'
+    },
+  }
+}
+
 export const Stefnuhringur: Block = {
   slug: 'stefnuhringur',
   interfaceName: 'StefnuhringurBlock',
@@ -124,13 +157,49 @@ export const Stefnuhringur: Block = {
       max: 40,
     },
     {
-      name: 'hamarksbreidd',
-      type: 'number',
-      label: 'Hámarksbreidd (px)',
-      defaultValue: 640,
-      min: 280,
-      max: 1000,
-      admin: { step: 20 },
+      type: 'row',
+      fields: [
+        {
+          name: 'breidd',
+          type: 'number',
+          label: 'Breidd',
+          defaultValue: 100,
+          validate: sizeValidate('breiddEining', false),
+          admin: { width: '60%', description: '1–100 % eða 200–2000 px' },
+        },
+        {
+          name: 'breiddEining',
+          type: 'select',
+          label: 'Eining',
+          defaultValue: '%',
+          options: UNITS,
+          admin: { width: '40%' },
+        },
+      ],
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'hamarksbreidd',
+          type: 'number',
+          label: 'Hámarksbreidd',
+          defaultValue: 640,
+          validate: sizeValidate('hamarksbreiddEining', true),
+          admin: {
+            width: '60%',
+            description: '1–100 % eða 200–2000 px. Tómt = ekkert hámark.',
+          },
+        },
+        {
+          name: 'hamarksbreiddEining',
+          type: 'select',
+          label: 'Eining',
+          defaultValue: 'px',
+          options: UNITS,
+          admin: { width: '40%' },
+        },
+      ],
     },
     {
       name: 'jofnun',
@@ -143,6 +212,29 @@ export const Stefnuhringur: Block = {
         { label: 'Hægri', value: 'right' },
       ],
       admin: { layout: 'horizontal' },
+    },
+    {
+      name: 'litir',
+      type: 'group',
+      label: 'Litir',
+      admin: {
+        description:
+          'Hex-litur án #, t.d. BF4C37. Tómt = upprunalegi liturinn. ' +
+          'Heimsmarkmiðareitir halda alltaf opinberu litunum.',
+      },
+      fields: [
+        colorField('born', 'Börnin mikilvægust', 'BF4C37'),
+        colorField('vell', 'Vellíðan íbúa', 'D69348'),
+        colorField('fjol', 'Fjölbreytt störf', '823E92'),
+        colorField('skil', 'Skilvirk þjónusta', '5BA1B4'),
+        colorField('kraf', 'Kraftur fjölbreytileikans', '2760AB'),
+        colorField('vist', 'Vistvænt samfélag', '81BA50'),
+        colorField('text', 'Texti á áherslum', 'FFFFFF'),
+        colorField('hubbg', 'Bakgrunnur miðju', 'FFFFFF'),
+        colorField('hubtitle', '„Framtíðarsýn“', '2760AB'),
+        colorField('hubtext', 'Texti miðju', '6D6E70'),
+        colorField('bgcolor', 'Bakgrunnur græju', 'eftir þema'),
+      ],
     },
   ],
 }
