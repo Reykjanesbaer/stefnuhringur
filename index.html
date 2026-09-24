@@ -49,6 +49,23 @@
   .checks label { display: flex; gap: .5rem; align-items: center; font-size: .95rem; cursor: pointer; }
   .checks input { accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
   hr { border: 0; border-top: 1px solid var(--line); margin: 1.25rem 0; }
+  h3 { font-size: 1rem; font-weight: 700; margin: 0 0 .75rem; }
+  .field-hint { color: var(--muted); font-size: .82rem; margin: .3rem 0 0; }
+
+  .size { display: flex; gap: .5rem; align-items: stretch; }
+  .size input[type=number] { flex: 1; min-width: 0; font: inherit; padding: .35rem .5rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .size .seg-ctl { flex: 0 0 6.5rem; }
+
+  .colors-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .75rem; }
+  .colors-head h3 { margin: 0; }
+  .reset { font: inherit; font-size: .88rem; font-weight: 700; border-radius: 9px; padding: .3rem .7rem; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+  .colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: .55rem 1.75rem; }
+  .color-row { display: grid; grid-template-columns: 2.2rem 1fr 6.2rem; gap: .6rem; align-items: center; }
+  .color-row label { font-size: .92rem; }
+  .color-row input[type=color] { width: 2.2rem; height: 2rem; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: none; cursor: pointer; }
+  .color-row input[type=text] { width: 100%; font: .88rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-transform: uppercase; padding: .35rem .45rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .color-row input[type=text]::placeholder { text-transform: none; font-family: var(--font); }
+  input[aria-invalid="true"] { border-color: #C62828 !important; box-shadow: 0 0 0 1px #C62828; }
 
   .code { margin-top: 1.25rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 1.25rem; }
   .tabs { display: flex; gap: .5rem; margin-bottom: .75rem; flex-wrap: wrap; }
@@ -109,8 +126,24 @@
     <div class="grid">
       <div class="ctl"><label class="head" for="radius">Hornarúnnun <output id="o-radius"></output></label>
         <input id="radius" name="radius" type="range" min="0" max="40" step="1"></div>
-      <div class="ctl"><label class="head" for="maxw">Hámarksbreidd <output id="o-maxw"></output></label>
-        <input id="maxw" name="maxw" type="range" min="280" max="1000" step="20"></div>
+      <div class="ctl"><label class="head" for="width">Breidd</label>
+        <div class="size">
+          <input id="width" name="width" type="number" inputmode="decimal" min="1" max="2000" aria-describedby="width-hint">
+          <div class="seg-ctl" role="radiogroup" aria-label="Eining breiddar">
+            <label><input type="radio" name="widthUnit" value="%">%</label>
+            <label><input type="radio" name="widthUnit" value="px">px</label>
+          </div>
+        </div>
+        <p class="field-hint" id="width-hint">1–100 % eða 200–2000 px</p></div>
+      <div class="ctl"><label class="head" for="maxw">Hámarksbreidd</label>
+        <div class="size">
+          <input id="maxw" name="maxw" type="number" inputmode="decimal" min="1" max="2000" placeholder="ekkert hámark" aria-describedby="maxw-hint">
+          <div class="seg-ctl" role="radiogroup" aria-label="Eining hámarksbreiddar">
+            <label><input type="radio" name="maxwUnit" value="%">%</label>
+            <label><input type="radio" name="maxwUnit" value="px">px</label>
+          </div>
+        </div>
+        <p class="field-hint" id="maxw-hint">1–100 % eða 200–2000 px. Tómt = ekkert hámark.</p></div>
       <div class="ctl"><span class="head">Staðsetning á síðu</span>
         <div class="seg-ctl" role="radiogroup" aria-label="Staðsetning á síðu">
           <label><input type="radio" name="align" value="left">Vinstri</label>
@@ -118,6 +151,13 @@
           <label><input type="radio" name="align" value="right">Hægri</label>
         </div></div>
     </div>
+    <hr>
+    <div class="colors-head">
+      <h3>Litir</h3>
+      <button type="button" class="reset" id="resetColors">Upprunalegir litir</button>
+    </div>
+    <div class="colors" id="colors"></div>
+    <p class="field-hint">Hex-litur, t.d. <code>BF4C37</code>. Heimsmarkmiðareitir halda alltaf opinberu litunum.</p>
   </form>
 
   <section class="code">
@@ -153,14 +193,23 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var SPEED_STEPS = [0, 600, 480, 360, 300, 240, 200, 180, 150, 120, 100, 90, 75, 60, 50, 45, 40, 35, 30, 25, 20];
-  /* Stillingar sem stýra aðeins iframe-inum, ekki græjunni */
-  var FRAME_DEF = { maxw: 640, align: 'left' };
+  /*
+   * Stillingar sem stýra aðeins iframe-inum, ekki græjunni. Breiddir eru
+   * staðfestar með parseSize í widget/config.js, sama falli og embed.js notar.
+   */
+  var FRAME_DEF = { width: cfg.SIZE.width.def, maxw: cfg.SIZE.maxWidth.def, align: 'left' };
+
+  var COLOR_LABELS = {
+    text: 'Texti á áherslum', hubbg: 'Bakgrunnur miðju', hubtitle: '„Framtíðarsýn“',
+    hubtext: 'Texti miðju', bgcolor: 'Bakgrunnur græju'
+  };
+  content.segments.forEach(function (s) { COLOR_LABELS[s.key] = s.title.join(' '); });
 
   var q = new URLSearchParams(location.search);
   var opts = cfg.parse(location.search);
-  var maxw = parseInt(q.get('maxw'), 10);
   var frameOpts = {
-    maxw: maxw >= 280 && maxw <= 1000 ? maxw : FRAME_DEF.maxw,
+    width: cfg.size(q.get('width'), 'width'),
+    maxw: cfg.size(q.get('maxw'), 'maxWidth'),
     align: ['left', 'center', 'right'].indexOf(q.get('align')) !== -1 ? q.get('align') : FRAME_DEF.align
   };
 
@@ -198,13 +247,102 @@
     startSel.appendChild(o);
   });
 
+  /* ---------- Litir: litaval + hex-reitur, samstillt í báðar áttir ---------- */
+
+  var colorBox = $('colors');
+  cfg.COLOR_KEYS.forEach(function (k) {
+    var row = document.createElement('div');
+    row.className = 'color-row';
+    row.innerHTML =
+      '<input type="color" id="pick-' + k + '" aria-label="' + COLOR_LABELS[k] + ': litaval">' +
+      '<label for="hex-' + k + '">' + COLOR_LABELS[k] + '</label>' +
+      '<input type="text" id="hex-' + k + '" data-color="' + k + '" maxlength="7" ' +
+      'spellcheck="false" autocomplete="off" autocapitalize="characters"' +
+      (k === 'bgcolor' ? ' placeholder="eftir þema"' : '') + '>';
+    colorBox.appendChild(row);
+
+    var pick = row.querySelector('input[type=color]'), hex = row.querySelector('input[type=text]');
+    /* Þessir hlustarar keyra á undan form-hlustaranum (sem hlustar á bubbling) */
+    pick.addEventListener('input', function () {
+      hex.value = pick.value.slice(1).toUpperCase();
+      hex.removeAttribute('aria-invalid');
+    });
+    hex.addEventListener('input', function () {
+      var c = cfg.parseColor(hex.value);
+      if (c) pick.value = '#' + c;
+      markColor(k, hex, c);
+    });
+  });
+
+  function markColor(k, hex, c) {
+    var ok = !!c || (k === 'bgcolor' && hex.value.trim() === '');
+    if (ok) hex.removeAttribute('aria-invalid');
+    else hex.setAttribute('aria-invalid', 'true');
+  }
+
+  function colorsToForm() {
+    cfg.COLOR_KEYS.forEach(function (k) {
+      var hex = $('hex-' + k);
+      hex.value = opts[k];
+      $('pick-' + k).value = '#' + (opts[k] || 'FFFFFF');
+      hex.removeAttribute('aria-invalid');
+    });
+  }
+
+  $('resetColors').addEventListener('click', function () {
+    cfg.COLOR_KEYS.forEach(function (k) { opts[k] = cfg.SPEC[k].def; });
+    colorsToForm();
+    fromForm();
+  });
+
+  /* ---------- Breidd: tala + % / px ---------- */
+
+  function splitSize(v) {
+    if (v === 'none') return ['', 'px'];
+    var m = /^([\d.]+)(%|px)$/.exec(v);
+    return m ? [m[1], m[2]] : ['', 'px'];
+  }
+
+  function sizeToForm(name, v) {
+    var parts = splitSize(v);
+    form.elements[name].value = parts[0];
+    form.querySelectorAll('input[name=' + name + 'Unit]').forEach(function (r) { r.checked = r.value === parts[1]; });
+    form.elements[name].removeAttribute('aria-invalid');
+  }
+
+  /* Les tölu + einingu; ógilt gildi fær aria-invalid og sjálfgefið er notað */
+  function sizeFromForm(name, kind) {
+    var input = form.elements[name];
+    var unit = (form.querySelector('input[name=' + name + 'Unit]:checked') || {}).value || 'px';
+    var raw = input.value.trim();
+    if (raw === '' && kind === 'maxWidth') { input.removeAttribute('aria-invalid'); return 'none'; }
+    var v = cfg.parseSize(raw + unit, kind);
+    if (v) input.removeAttribute('aria-invalid');
+    else input.setAttribute('aria-invalid', 'true');
+    return v || cfg.SIZE[kind].def;
+  }
+
+  /* Skipt um einingu: stingum upp á skynsamlegu gildi ef talan passar ekki */
+  ['width', 'maxw'].forEach(function (name) {
+    form.querySelectorAll('input[name=' + name + 'Unit]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        var input = form.elements[name], n = parseFloat(input.value);
+        if (!isFinite(n)) return;
+        if (r.value === '%' && n > 100) input.value = 100;
+        if (r.value === 'px' && n < 200) input.value = name === 'width' ? 480 : 640;
+      });
+    });
+  });
+
   function toForm() {
     var el = form.elements;
     el.speed.value = speedToStep(opts.speed);
     el.visible.value = opts.visible;
     el.zoom.value = opts.zoom;
     el.radius.value = opts.radius;
-    el.maxw.value = frameOpts.maxw;
+    sizeToForm('width', frameOpts.width);
+    sizeToForm('maxw', frameOpts.maxw);
+    colorsToForm();
     startSel.value = opts.start;
     ['dir', 'hub', 'theme'].forEach(function (n) {
       form.querySelectorAll('input[name=' + n + ']').forEach(function (r) { r.checked = r.value === opts[n]; });
@@ -227,8 +365,10 @@
     });
     ['pause', 'desc', 'sdg', 'icons'].forEach(function (n) { raw[n] = el[n].checked ? 1 : 0; });
     raw.bg = el.transparent.checked ? 'transparent' : '';
+    cfg.COLOR_KEYS.forEach(function (k) { raw[k] = $('hex-' + k).value; });
     opts = cfg.parse(raw);
-    frameOpts.maxw = +el.maxw.value;
+    frameOpts.width = sizeFromForm('width', 'width');
+    frameOpts.maxw = sizeFromForm('maxw', 'maxWidth');
     var a = form.querySelector('input[name=align]:checked');
     frameOpts.align = a ? a.value : 'left';
     sendToPreview();
@@ -254,12 +394,9 @@
     $('o-visible').textContent = opts.visible + ' %';
     $('o-zoom').textContent = opts.zoom.toFixed(1).replace('.', ',') + '×';
     $('o-radius').textContent = opts.radius + ' px';
-    $('o-maxw').textContent = frameOpts.maxw + ' px';
-
-    var holder = $('holder');
-    holder.style.maxWidth = frameOpts.maxw + 'px';
-    holder.style.marginLeft = frameOpts.align === 'left' ? '0' : 'auto';
-    holder.style.marginRight = frameOpts.align === 'right' ? '0' : 'auto';
+    /* Forskoðunin notar nákvæmlega sömu breidd og kóðinn */
+    var sizeCss = cfg.sizeCss(frameOpts.width, frameOpts.maxw);
+    $('holder').style.cssText = sizeCss + ';' + marg;
     frame.style.aspectRatio = ratio;
 
     var wq = widgetQuery();
@@ -272,14 +409,15 @@
         '  title="' + content.label + '"\n' +
         '  loading="lazy"\n' +
         '  scrolling="no"\n' +
-        '  style="width:100%;max-width:' + frameOpts.maxw + 'px;aspect-ratio:' + ratio +
+        '  style="' + sizeCss + ';aspect-ratio:' + ratio +
         ';border:0;display:block;' + marg + ';color-scheme:normal">\n' +
         '</iframe>';
       hint = 'Límdu í HTML-reit eða Code/HTML blokk í Payload. Hæðin fylgir breiddinni sjálfkrafa (aspect-ratio).';
     } else if (tab === 'script') {
       var attrs = cfg.changed(opts).map(function (kv) { return '  data-' + kv[0] + '="' + kv[1] + '"'; });
       if (frameOpts.align !== 'left') attrs.push('  data-align="' + frameOpts.align + '"');
-      attrs.push('  data-max-width="' + frameOpts.maxw + 'px"');
+      if (frameOpts.width !== FRAME_DEF.width) attrs.push('  data-width="' + frameOpts.width + '"');
+      attrs.push('  data-max-width="' + frameOpts.maxw + '"');
       code = '<script\n  src="' + base + 'embed.js"\n' + attrs.join('\n') + '>\n<\/script>';
       hint = 'Aðeins ef Payload-uppsetningin leyfir <script>. Annars skaltu nota iframe.';
     } else {
@@ -291,6 +429,7 @@
 
     /* Slóð síðunnar geymir stillingarnar svo hægt sé að deila henni */
     var pq = new URLSearchParams(wq);
+    if (frameOpts.width !== FRAME_DEF.width) pq.set('width', frameOpts.width);
     if (frameOpts.maxw !== FRAME_DEF.maxw) pq.set('maxw', frameOpts.maxw);
     if (frameOpts.align !== FRAME_DEF.align) pq.set('align', frameOpts.align);
     try {
