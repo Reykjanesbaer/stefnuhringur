@@ -12,7 +12,8 @@
  *          uppfæra líka payload/blocks/Stefnuhringur/config.ts.
  *   angle  Stefna miðlínu hlutans í gráðum, réttsælis frá 12 (−30 = efst
  *          til vinstri eins og á myndinni). Sex hlutar með 60° millibili.
- *   color  Litur hlutans (hex).
+ *   color  Sjálfgefinn litur hlutans (hex). Hægt að yfirskrifa í slóð,
+ *          t.d. ?born=123456 (lykillinn er `key`).
  *   title  Heiti, ein lína á hvert stak.
  *   desc   Lýsing (sýnd alltaf eða aðeins við aðdrátt, sjá ?desc=).
  *   sdg    Númer heimsmarkmiða sem birtast utan við brúnina, í þessari röð.
@@ -23,6 +24,17 @@
 
   global.StefnuContent = {
     label: 'Stefnuhringur Reykjanesbæjar',
+
+    /*
+     * Aðrir sjálfgefnir litir. Hægt að yfirskrifa í slóð með sama lykli,
+     * t.d. ?hubbg=FFE9A8. Heimsmarkmiðareitir halda alltaf opinberu litunum.
+     */
+    colors: {
+      text: '#FFFFFF',       /* heiti og lýsingar á áherslum */
+      hubbg: '#FFFFFF',      /* bakgrunnur miðju             */
+      hubtitle: '#2760AB',   /* „Framtíðarsýn“               */
+      hubtext: '#6D6E70'     /* texti miðju                  */
+    },
 
     hub: {
       title: 'Framtíðarsýn',

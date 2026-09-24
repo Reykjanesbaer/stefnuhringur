@@ -1,6 +1,8 @@
 /*
- * Stefnuhringur — sjálfgefnar stillingar, lestur færibreyta, rúmfræði og
- * listi heimsmarkmiðanna. Hleðst á eftir content.js og á undan widget.js.
+ * Stefnuhringur — sjálfgefnar stillingar, lestur færibreyta, litir, breidd,
+ * rúmfræði og listi heimsmarkmiðanna. Hleðst á eftir content.js og á undan
+ * widget.js. embed.js hleður þessa skrá líka (án content.js) til að nota
+ * parseSize og frame.
  *
  * Kóðasmiðurinn (index.html í rót) notar þessa sömu skrá, svo sjálfgefin
  * gildi, gildisathugun og hlutföll eru skilgreind á einum stað.
@@ -28,6 +30,30 @@
     radius:  { def: 14,     num: [0, 40] }
   };
 
+  /* --------------------------------------------------------------------
+   * Litir. Hex án #, en # og %23 leyfð, hvaða hástafir sem er.
+   * Sjálfgefin gildi koma úr content.js. bgcolor er tómt = eftir þema.
+   * ------------------------------------------------------------------ */
+  var content = global.StefnuContent || { segments: [], colors: {} };
+  var COLOR_KEYS = content.segments.map(function (s) { return s.key; })
+    .concat(['text', 'hubbg', 'hubtitle', 'hubtext', 'bgcolor']);
+
+  function hexOf(c) { return c ? String(c).replace(/^#/, '').toUpperCase() : ''; }
+
+  content.segments.forEach(function (s) { SPEC[s.key] = { def: hexOf(s.color), color: true }; });
+  ['text', 'hubbg', 'hubtitle', 'hubtext'].forEach(function (k) {
+    SPEC[k] = { def: hexOf(content.colors && content.colors[k]), color: true };
+  });
+  SPEC.bgcolor = { def: '', color: true, empty: true };
+
+  /* „BF4C37“, „#bf4c37“, „%23BF4C37“ og „f00“ → „BF4C37“ / „FF0000“; annars null */
+  function parseColor(raw) {
+    if (raw === null || raw === undefined) return null;
+    var v = String(raw).trim().replace(/^(#|%23)/i, '');
+    if (/^[0-9a-f]{3}$/i.test(v)) v = v.replace(/./g, function (c) { return c + c; });
+    return /^[0-9a-f]{6}$/i.test(v) ? v.toUpperCase() : null;
+  }
+
   var KEYS = Object.keys(SPEC);
 
   function startKeys() {
@@ -45,6 +71,10 @@
   function check(key, raw) {
     var s = SPEC[key];
     if (raw === null || raw === undefined) return s.def;
+    if (s.color) {
+      if (s.empty && String(raw).trim() === '') return '';
+      return parseColor(raw) || s.def;
+    }
     var v = String(raw).trim().toLowerCase();
     if (s.num) {
       if (!/^-?\d+(\.\d+)?$/.test(v)) return s.def;
@@ -115,6 +145,39 @@
     return { cropY: cropY, bottom: bottom, width: 2 * E, height: bottom + E };
   }
 
+  /* --------------------------------------------------------------------
+   * Breidd iframe-sins (umgjörð, fer ekki í slóð græjunnar).
+   * „80%“, „480px“ eða „480“ (= px). Gildi utan marka → null.
+   * ------------------------------------------------------------------ */
+  var SIZE = {
+    width:    { def: '100%',  pct: [1, 100], px: [200, 2000], none: false },
+    maxWidth: { def: '640px', pct: [1, 100], px: [200, 2000], none: true }
+  };
+
+  function parseSize(raw, kind) {
+    var s = SIZE[kind];
+    if (raw === null || raw === undefined) return null;
+    var v = String(raw).trim().toLowerCase().replace(/\s+/g, '');
+    if (s.none && v === 'none') return 'none';
+    var m = /^(\d+(?:\.\d+)?)(%|px)?$/.exec(v);
+    if (!m) return null;
+    var n = parseFloat(m[1]), unit = m[2] || 'px';
+    var lim = unit === '%' ? s.pct : s.px;
+    return n >= lim[0] && n <= lim[1] ? n + unit : null;
+  }
+
+  /* Gilt gildi eða sjálfgefið */
+  function size(raw, kind) { return parseSize(raw, kind) || SIZE[kind].def; }
+
+  /*
+   * CSS fyrir breidd iframe-sins. max-width er alltaf klemmt við 100% svo
+   * græjan flæði aldrei út fyrir á mjóum skjá.
+   */
+  function sizeCss(width, maxWidth) {
+    var w = size(width, 'width'), m = size(maxWidth, 'maxWidth');
+    return 'width:' + w + ';max-width:' + (m === 'none' ? '100%' : 'min(' + m + ',100%)');
+  }
+
   /* Hlutfall breiddar/hæðar, t.d. "636 / 428" fyrir aspect-ratio */
   function aspect(o) {
     var f = frame(o);
@@ -157,6 +220,12 @@
     GEO: GEO,
     SDG: SDG,
     SDG_OFFICIAL: SDG_OFFICIAL,
+    COLOR_KEYS: COLOR_KEYS,
+    parseColor: parseColor,
+    SIZE: SIZE,
+    parseSize: parseSize,
+    size: size,
+    sizeCss: sizeCss,
     defaults: defaults,
     startKeys: startKeys,
     parse: parse,
