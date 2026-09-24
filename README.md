@@ -230,6 +230,14 @@ widget/?icon-vist=none&iconsize=120
 
 Hreyfingin keyrir í einni `requestAnimationFrame`-lykkju sem sefur þegar
 ekkert hreyfist, þegar hringurinn er utan skjás eða þegar flipinn er falinn.
+Öll gildi ná markgildi sínu og aðeins er skrifað í DOM þegar gildi breytist,
+svo kyrr hringur (hover, `speed=0`, kyrr aðdráttur) veldur engri endurteiknun.
+
+Heiti og lýsingar eru HTML-lag ofan á SVG-inu (`.lbl-layer`), ekki SVG-texti.
+SVG-texti smellist á heila pixla lóðrétt í Chrome og Edge og titrar á meðan
+hringurinn snýst. HTML-lagið fylgir sömu myndavél og klippilínu og hringurinn
+og rennur um brot úr pixli. Í prófunum er `?debug=1` til, sem gefur
+`window.__stefnuhringur.setRotation(gráður)`.
 
 ---
 
