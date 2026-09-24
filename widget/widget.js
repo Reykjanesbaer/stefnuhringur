@@ -6,14 +6,20 @@
  *   crop (clipPath)         klippir hringinn við klippilínuna
  *   └─ cam1                 aðdráttur
  *      ├─ ring              snúningur: fleygar, táknbólur, heimsmarkmið
- *      ├─ glyphs            tákn, fylgja bólunum en alltaf upprétt; eigin
- *      │                    myndir (?icon-born=…) með <image>, aldrei innerHTML
- *      └─ labels            heiti og lýsingar, alltaf upprétt og lárétt
+ *      └─ glyphs            tákn, fylgja bólunum en alltaf upprétt; eigin
+ *                           myndir (?icon-born=…) með <image>, aldrei innerHTML
  *   cam2 (ekki klippt)      sami aðdráttur
  *   └─ hub                  hvít miðja með framtíðarsýn, snýst aldrei
  *
+ *   lbl-layer (HTML)        heiti og lýsingar, alltaf upprétt og lárétt.
+ *   └─ lbl-stage            fylgir sömu myndavél og klippingu og SVG-ið.
+ *                           HTML en ekki SVG-texti, því SVG-texti smellist
+ *                           á heila pixla lóðrétt og titrar á hreyfingu.
+ *
  * Ein requestAnimationFrame-lykkja sem sefur þegar ekkert hreyfist, þegar
- * græjan er utan skjás eða flipinn falinn.
+ * græjan er utan skjás eða flipinn falinn. Öll gildi ná markgildi sínu
+ * (approach) og aðeins er skrifað í DOM þegar gildi breytist (setA/setS),
+ * svo kyrr hringur veldur engri endurteiknun.
  */
 (function () {
   'use strict';
@@ -95,7 +101,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var root = document.documentElement;
   var sh = $('sh'), svg = $('svg'), cam1 = $('cam1'), cam2 = $('cam2');
-  var ringG = $('ring'), glyphsG = $('glyphs'), labelsG = $('labels');
+  var ringG = $('ring'), glyphsG = $('glyphs');
+  var lblLayer = $('lblLayer'), lblStage = $('lblStage');
   var hubG = $('hub'), cropRect = $('cropRect'), live = $('live');
   var defs = svg.querySelector('defs');
   var segs = [];
@@ -128,6 +135,17 @@
     });
   }
 
+  /* Línur aðskildar með <br>; textContent, aldrei innerHTML */
+  function htmlLines(cls, lines) {
+    var d = document.createElement('div');
+    d.className = cls;
+    lines.forEach(function (line, j) {
+      if (j) d.appendChild(document.createElement('br'));
+      d.appendChild(document.createTextNode(line));
+    });
+    return d;
+  }
+
   function build() {
     sh.setAttribute('aria-label', content.label);
     document.title = content.label;
@@ -149,20 +167,16 @@
       /* Innihald táknsins er sett í applyIcons(); hér er aðeins hópurinn sem hreyfist */
       var glyph = el('g', { 'class': 'glyph' }, glyphsG);
 
-      /* Heiti og lýsing — staðsett í hverjum ramma, alltaf upprétt */
-      var lg = el('g', { 'class': 'lbl' }, labelsG);
+      /* Heiti og lýsing sem HTML — staðsett í hverjum ramma, alltaf upprétt */
+      var lg = document.createElement('div');
+      lg.className = 'hl moving';
       var tH = s.title.length * G.T_LH;
-      var tg = el('g', {}, lg);
-      var tt = el('text', { 'class': 't', 'text-anchor': 'middle' }, tg);
-      s.title.forEach(function (line, j) {
-        el('tspan', { x: 0, y: f2(-tH / 2 + G.T_LH * (j + 0.78)) }, tt).textContent = line;
-      });
+      var tg = htmlLines('hl-t', s.title);
       var lines = wrap(s.desc, G.D_WRAP), dH = lines.length * G.D_LH;
-      var dg = el('g', {}, lg);
-      var dt = el('text', { 'class': 'd', 'text-anchor': 'middle' }, dg);
-      lines.forEach(function (line, j) {
-        el('tspan', { x: 0, y: f2(G.D_LH * (j + 0.8)) }, dt).textContent = line;
-      });
+      var dg = htmlLines('hl-d', lines);
+      lg.appendChild(tg);
+      lg.appendChild(dg);
+      lblStage.appendChild(lg);
 
       g.addEventListener('click', function () { toggleZoom(i); });
       g.addEventListener('keydown', function (e) {
@@ -207,7 +221,8 @@
     F: [0, 0],         /* miðja rammans                                   */
     cropY: 0,
     bottom: 0,
-    clipH: null
+    vb: { x: 0, y: 0, w: 1, h: 1 },
+    idle: true         /* lykkjan stöðvuð og allt kyrrt */
   };
 
   function startAngle(key) {
@@ -225,6 +240,8 @@
     st.cropY = f.cropY;
     st.bottom = f.bottom;
     svg.setAttribute('viewBox', -G.E + ' ' + -G.E + ' ' + f.width + ' ' + f.height);
+    st.vb = { x: -G.E, y: -G.E, w: f.width, h: f.height };
+    measure();
     st.F = [0, -G.E + f.height / 2];
     if (st.zoomed === null) { st.cam.px = st.F[0]; st.cam.py = st.F[1]; }
 
@@ -246,7 +263,6 @@
       st.seek = startAngle(opts.start);
     }
 
-    st.clipH = null;
     draw();
     kick();
     postHeight();
@@ -439,8 +455,35 @@
   function kick() {
     if (running || !canRun()) return;
     running = true;
+    st.idle = false;
     last = performance.now();
     requestAnimationFrame(tick);
+  }
+
+  /*
+   * Mjúk nálgun sem smellir á markgildið þegar munurinn er undir eps.
+   * Án þess næst markgildið aldrei og skrifað væri í DOM að eilífu.
+   */
+  function approach(cur, target, f, eps) {
+    var n = cur + (target - cur) * f;
+    return Math.abs(target - n) < eps ? target : n;
+  }
+
+  /* Skrifa aðeins þegar gildi breytist (eigind / style) */
+  function setA(node, name, value) {
+    var c = node.__shA || (node.__shA = {});
+    if (c[name] !== value) { c[name] = value; node.setAttribute(name, value); }
+  }
+  function setS(node, prop, value) {
+    var c = node.__shS || (node.__shS = {});
+    if (c[prop] !== value) { c[prop] = value; node.style[prop] = value; }
+  }
+
+  /* SVG-einingar → CSS-pixlar, fyrir HTML-textalagið */
+  var pxScale = 1;
+  function measure() {
+    var w = svg.clientWidth;
+    if (w > 0) pxScale = w / st.vb.w;
   }
 
   /* Uppfærir stöðu um dt sekúndur; skilar true meðan eitthvað hreyfist */
@@ -451,14 +494,15 @@
     var tgt = targetAngle();
     if (tgt === null) {
       var tv = targetVel();
-      st.vel += (tv - st.vel) * ease(dt, 3.5);
+      st.vel = approach(st.vel, tv, ease(dt, 3.5), 0.01);
       st.rotation += st.vel * dt;
-      moving = tv !== 0 || Math.abs(st.vel) > 1e-3;
+      /* tv líka: fyrsti rammi getur fengið dt = 0 og þá hefur hraðinn ekki breyst */
+      moving = tv !== 0 || st.vel !== 0;
     } else {
       st.vel = 0;
       var goal = nearest(tgt);
-      st.rotation += (goal - st.rotation) * ease(dt, 7);
-      if (Math.abs(goal - st.rotation) < 0.02) {
+      st.rotation = approach(st.rotation, goal, ease(dt, 7), 0.005);
+      if (st.rotation === goal) {
         if (!zoomed && st.kbFocus === null) st.seek = null;
       } else moving = true;
     }
@@ -470,48 +514,71 @@
     var pxT = zoomed ? 0 : st.F[0];
     var pyT = zoomed ? -G.LABEL_R + 8 : st.F[1];
     var zT = zoomed ? 1 : 0;
-    c.k += (kT - c.k) * f;
-    c.px += (pxT - c.px) * f;
-    c.py += (pyT - c.py) * f;
-    st.zOpen += (zT - st.zOpen) * f;
-    if (Math.abs(kT - c.k) > 1e-4 || Math.abs(pyT - c.py) > 0.01 ||
-        Math.abs(pxT - c.px) > 0.01 || Math.abs(zT - st.zOpen) > 1e-3) moving = true;
+    c.k = approach(c.k, kT, f, 0.0002);
+    c.px = approach(c.px, pxT, f, 0.01);
+    c.py = approach(c.py, pyT, f, 0.01);
+    st.zOpen = approach(st.zOpen, zT, f, 0.001);
+    if (c.k !== kT || c.px !== pxT || c.py !== pyT || st.zOpen !== zT) moving = true;
 
     var fo = ease(dt, 8);
     segs.forEach(function (S, i) {
       var oT = opts.desc || st.zoomed === i ? 1 : 0;
-      S.open += (oT - S.open) * fo;
-      if (Math.abs(oT - S.open) > 1e-3) moving = true;
+      S.open = approach(S.open, oT, fo, 0.001);
+      if (S.open !== oT) moving = true;
     });
 
     return moving;
   }
 
   function draw() {
-    var c = st.cam;
+    var c = st.cam, vb = st.vb;
     var tf = 'translate(' + st.F[0] + ' ' + f2(st.F[1]) + ') scale(' + c.k.toFixed(4) +
-      ') translate(' + f2(-c.px) + ' ' + f2(-c.py) + ')';
-    cam1.setAttribute('transform', tf);
-    cam2.setAttribute('transform', tf);
-    ringG.setAttribute('transform', 'rotate(' + st.rotation.toFixed(3) + ')');
+      ') translate(' + (-c.px).toFixed(3) + ' ' + (-c.py).toFixed(3) + ')';
+    setA(cam1, 'transform', tf);
+    setA(cam2, 'transform', tf);
+    setA(ringG, 'transform', 'rotate(' + st.rotation.toFixed(3) + ')');
 
     /* Í aðdrætti færist klippilínan niður svo hlutinn klippist ekki */
     var clipY = st.cropY + (st.bottom - st.cropY) * st.zOpen;
-    var clipH = f2(clipY + G.E + 60);
-    if (clipH !== st.clipH) { cropRect.setAttribute('height', clipH); st.clipH = clipH; }
+    setA(cropRect, 'height', f2(clipY + G.E + 60));
 
+    /* HTML-textinn fylgir sömu myndavél: px-kvarði · viewBox · myndavél */
+    setS(lblStage, 'transform', 'scale(' + pxScale.toFixed(5) + ') translate(' +
+      (-vb.x + st.F[0]).toFixed(3) + 'px, ' + (-vb.y + st.F[1]).toFixed(3) + 'px) scale(' +
+      c.k.toFixed(4) + ') translate(' + (-c.px).toFixed(3) + 'px, ' + (-c.py).toFixed(3) + 'px)');
+    /* …og sömu klippilínu og hringurinn, líka á meðan aðdráttur hreyfist */
+    setS(lblLayer, 'clipPath', 'inset(0 0 ' +
+      Math.max(0, (1 - (clipY - vb.y) / vb.h) * 100).toFixed(3) + '% 0)');
+
+    /*
+     * Samsett lag (will-change) á meðan eitthvað hreyfist, svo textinn renni
+     * um brot úr pixli; tekið af þegar aðdráttur er kyrr eða lykkjan hefur
+     * stöðvast (hover, speed=0) svo hann teiknist skarpur.
+     */
     var zoomed = st.zoomed !== null;
+    var settled = st.idle || (zoomed && c.k === opts.zoom && st.zOpen === 1);
+
     SEGMENTS.forEach(function (s, i) {
       var S = segs[i], a = s.angle + st.rotation;
       var p = pt(G.LABEL_R, a);
       var H = S.tH + G.D_GAP + S.dH, off = S.open * (-H / 2 + S.tH / 2);
-      S.lg.setAttribute('transform', 'translate(' + f2(p[0]) + ' ' + f2(p[1]) + ')');
-      S.tg.setAttribute('transform', 'translate(0 ' + f2(off) + ')');
-      S.dg.setAttribute('transform', 'translate(0 ' + f2(off + S.tH / 2 + G.D_GAP) + ')');
-      S.dg.setAttribute('opacity', S.open.toFixed(3));
+      /*
+       * rotate(0.01deg) á hreyfingu: Chrome smellir ás-samsíða hliðrunum á
+       * heila tækjapixla (sést við devicePixelRatio 2), en ekki snúnum lögum.
+       * Tilfærslan er < 0,02 px yfir heila línu. Tekið af í kyrrum aðdrætti.
+       */
+      setS(S.lg, 'transform', 'translate3d(' + p[0].toFixed(3) + 'px, ' + p[1].toFixed(3) + 'px, 0)' +
+        (settled ? '' : ' rotate(0.01deg)'));
+      setS(S.tg, 'transform', 'translate(-50%, ' + (off - S.tH / 2).toFixed(3) + 'px)');
+      setS(S.dg, 'transform', 'translate(-50%, ' + (off + S.tH / 2 + G.D_GAP).toFixed(3) + 'px)');
+      setS(S.dg, 'opacity', S.open.toFixed(3));
+      if (S.settled !== settled) {
+        S.settled = settled;
+        S.lg.classList.toggle('moving', !settled);
+      }
 
       var gp = pt(G.BUB_RAD, a + G.BUB_OFF);
-      S.glyph.setAttribute('transform', 'translate(' + f2(gp[0]) + ' ' + f2(gp[1]) + ')');
+      setA(S.glyph, 'transform', 'translate(' + gp[0].toFixed(3) + ' ' + gp[1].toFixed(3) + ')');
 
       var dim = zoomed && st.zoomed !== i;
       if (dim !== S.dim) {
@@ -528,6 +595,7 @@
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     var moving = step(dt);
+    if (!moving) st.idle = true;
     draw();
     if (moving) requestAnimationFrame(tick);
     else running = false;
@@ -575,10 +643,25 @@
     }
     document.addEventListener('visibilitychange', kick);
 
+    /* Ný stærð: nýr px-kvarði fyrir textalagið, teiknað strax (lykkjan getur sofið) */
+    function onResize() { measure(); draw(); postHeight(); }
     if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(postHeight).observe(sh);
+      new ResizeObserver(onResize).observe(sh);
     } else {
-      window.addEventListener('resize', postHeight);
+      window.addEventListener('resize', onResize);
+    }
+
+    /* Prófunarkrókur, aðeins með ?debug=1 */
+    if (new URLSearchParams(window.location.search).get('debug') === '1') {
+      window.__stefnuhringur = {
+        setRotation: function (deg) {
+          st.rotation = +deg;
+          st.vel = 0;
+          st.seek = null;
+          st.idle = false;   /* mælir hreyfiferilinn, eins og í snúningi */
+          draw();
+        }
+      };
     }
   }
 
