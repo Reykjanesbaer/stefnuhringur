@@ -57,7 +57,7 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.sh svg {
+.sh > svg {
   display: block;
   width: 100%;
   height: auto;
@@ -94,10 +94,16 @@ html, body {
  */
 .lbl-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .lbl-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.hl { position: absolute; left: 0; top: 0; width: 0; height: 0; }
-/* Samsett lag á meðan hringurinn hreyfist; tekið af í kyrrum aðdrætti svo
-   textinn teiknist skarpur í stækkun */
-.hl.moving { will-change: transform; }
+
+/*
+ * Snúningslagið. .rot snýst með hringnum; .up (tákn og heiti) mótsnýst um
+ * eigin miðju. Hvort tveggja keyrir sem Web Animation á compositor-þræði,
+ * svo aðalþráðurinn gerir ekkert í jöfnum snúningi.
+ */
+.rot, .orb, .up { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.ring-svg { position: absolute; overflow: visible; }
+.ring-svg .seg { pointer-events: auto; }
+.glyph svg { position: absolute; display: block; overflow: visible; }
 .hl-t, .hl-d {
   position: absolute;
   left: 0;

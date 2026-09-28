@@ -1,25 +1,29 @@
 /*
  * Stefnuhringur — rúmfræði, teikning, hreyfing og samskipti.
  *
- * Uppbygging SVG (sjá widget/index.html):
+ * Uppbygging (sjá widget/index.html):
  *
- *   crop (clipPath)         klippir hringinn við klippilínuna
- *   └─ cam1                 aðdráttur
- *      ├─ ring              snúningur: fleygar, táknbólur, heimsmarkmið
- *      └─ glyphs            tákn, fylgja bólunum en alltaf upprétt; eigin
- *                           myndir (?icon-born=…) með <image>, aldrei innerHTML
- *   cam2 (ekki klippt)      sami aðdráttur
- *   └─ hub                  hvít miðja með framtíðarsýn, snýst aldrei
+ *   svg                     ákvarðar stærð græjunnar
+ *   └─ cam                  aðdráttur
+ *      └─ hub               hvít miðja með framtíðarsýn, snýst aldrei
  *
- *   lbl-layer (HTML)        heiti og lýsingar, alltaf upprétt og lárétt.
- *   └─ lbl-stage            fylgir sömu myndavél og klippingu og SVG-ið.
- *                           HTML en ekki SVG-texti, því SVG-texti smellist
- *                           á heila pixla lóðrétt og titrar á hreyfingu.
+ *   lbl-layer (HTML)        klippt við klippilínuna
+ *   └─ lbl-stage            SVG-einingar → px og sama myndavél og cam
+ *      └─ rot               snýst með hringnum
+ *         ├─ ring-svg       fleygar og heimsmarkmið
+ *         └─ orb → up       tákn og heiti; .up mótsnýst svo þau haldist upprétt
  *
- * Ein requestAnimationFrame-lykkja sem sefur þegar ekkert hreyfist, þegar
- * græjan er utan skjás eða flipinn falinn. Öll gildi ná markgildi sínu
- * (approach) og aðeins er skrifað í DOM þegar gildi breytist (setA/setS),
- * svo kyrr hringur veldur engri endurteiknun.
+ * Af hverju HTML-lag en ekki SVG: SVG-hópur sem snýst er endurteiknaður
+ * (rasteraður) í hverjum ramma á aðalþræðinum, og hver ný transform-strengur
+ * er rusl sem safnast upp; ruslasöfnun (major GC) á nokkurra sek. fresti olli
+ * hiksta. Nú snýst .rot (og mótsnúningur .up) sem Web Animation sem vafrinn
+ * keyrir á compositor-þræði: lagið er teiknað einu sinni og aðalþráðurinn
+ * gerir ekkert í jöfnum snúningi. HTML-texti rennur líka um brot úr pixli.
+ *
+ * JavaScript tekur aðeins við í umbreytingum (hægja á við hover, aðdráttur,
+ * lyklaborðsfókus, ný upphafsstaða): þá eru hreyfingarnar settar á pásu og
+ * currentTime stillt í hverjum ramma. Þegar hraðinn er aftur jafn fá
+ * hreyfingarnar að spila sjálfar og lykkjan sofnar.
  */
 (function () {
   'use strict';
@@ -100,12 +104,27 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var root = document.documentElement;
-  var sh = $('sh'), svg = $('svg'), cam1 = $('cam1'), cam2 = $('cam2');
-  var ringG = $('ring'), glyphsG = $('glyphs');
+  var sh = $('sh'), svg = $('svg'), cam = $('cam');
+  var ringG = $('ring'), ringSvg = $('ringSvg'), rot = $('rot');
   var lblLayer = $('lblLayer'), lblStage = $('lblStage');
-  var hubG = $('hub'), cropRect = $('cropRect'), live = $('live');
-  var defs = svg.querySelector('defs');
+  var hubG = $('hub'), live = $('live');
   var segs = [];
+
+  /* Ytri mörk hringsins (fleygar + heimsmarkmið), í SVG-einingum */
+  var RING_EXT = G.RV + G.TILE_OUT + G.TILE + 12;
+
+  /* Staðsettur hópur í snúningslaginu með mótsnúnum innri hluta (.up) */
+  function orb(p, cls) {
+    var o = document.createElement('div');
+    o.className = 'orb';
+    o.style.transform = 'translate(' + p[0].toFixed(3) + 'px, ' + p[1].toFixed(3) + 'px)';
+    var u = document.createElement('div');
+    u.className = 'up ' + cls;
+    u.setAttribute('aria-hidden', 'true');
+    o.appendChild(u);
+    rot.appendChild(o);
+    return u;
+  }
 
   function drawTiles(parent, s) {
     var M = pt(G.RV * Math.cos(rad(30)), s.angle);
@@ -151,6 +170,12 @@
     document.title = content.label;
     $('summary').textContent = content.hub.title + ': ' + joinLines(content.hub.lines);
 
+    var ext = RING_EXT;
+    ringSvg.setAttribute('viewBox', -ext + ' ' + -ext + ' ' + 2 * ext + ' ' + 2 * ext);
+    ringSvg.setAttribute('width', 2 * ext);
+    ringSvg.setAttribute('height', 2 * ext);
+    ringSvg.style.left = ringSvg.style.top = -ext + 'px';
+
     SEGMENTS.forEach(function (s, i) {
       var g = el('g', {
         'class': 'seg', tabindex: '0', role: 'button',
@@ -164,26 +189,25 @@
       var tiles = el('g', { 'class': 'tiles' }, g);
       drawTiles(tiles, s);
 
-      /* Innihald táknsins er sett í applyIcons(); hér er aðeins hópurinn sem hreyfist */
-      var glyph = el('g', { 'class': 'glyph' }, glyphsG);
+      /* Tákn: upprétt á miðri bólunni. Innihaldið er sett í applyIcons() */
+      var glyph = orb(bub, 'glyph');
+      var glyphSvg = el('svg', { focusable: 'false' }, glyph);
 
-      /* Heiti og lýsing sem HTML — staðsett í hverjum ramma, alltaf upprétt */
-      var lg = document.createElement('div');
-      lg.className = 'hl moving';
+      /* Heiti og lýsing sem HTML, upprétt á miðlínu hlutans */
+      var lg = orb(pt(G.LABEL_R, s.angle), 'hl');
       var tH = s.title.length * G.T_LH;
       var tg = htmlLines('hl-t', s.title);
       var lines = wrap(s.desc, G.D_WRAP), dH = lines.length * G.D_LH;
       var dg = htmlLines('hl-d', lines);
       lg.appendChild(tg);
       lg.appendChild(dg);
-      lblStage.appendChild(lg);
 
       g.addEventListener('click', function () { toggleZoom(i); });
       g.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleZoom(i); }
       });
 
-      segs.push({ g: g, shape: shape, tiles: tiles, glyph: glyph, iconSig: null, lg: lg, tg: tg, dg: dg, tH: tH, dH: dH, open: 0, dim: false });
+      segs.push({ g: g, shape: shape, tiles: tiles, glyph: glyph, glyphSvg: glyphSvg, iconSig: null, lg: lg, tg: tg, dg: dg, tH: tH, dH: dH, open: 0, dim: false });
     });
 
     hubG.setAttribute('class', 'hub');
@@ -194,11 +218,6 @@
       el('tspan', { x: 0, y: -27 + j * 12 }, hd).textContent = line;
     });
     hubG.addEventListener('click', function () { setZoom(null); });
-
-    /* Klippiramminn er alltaf jafn breiður; aðeins hæðin breytist */
-    cropRect.setAttribute('x', -G.E - 10);
-    cropRect.setAttribute('y', -G.E - 60);
-    cropRect.setAttribute('width', 2 * G.E + 20);
   }
 
   /* ================================================================== */
@@ -222,7 +241,7 @@
     cropY: 0,
     bottom: 0,
     vb: { x: 0, y: 0, w: 1, h: 1 },
-    idle: true         /* lykkjan stöðvuð og allt kyrrt */
+    wantCruise: false  /* jafn hraði náður: compositor tekur við snúningnum */
   };
 
   function startAngle(key) {
@@ -233,7 +252,7 @@
   }
 
   function applyOptions(o) {
-    var prevStart = opts.start;
+    var prevStart = opts.start, prevDir = opts.dir;
     opts = o;
 
     var f = cfg.frame(opts);
@@ -252,6 +271,13 @@
     root.style.setProperty('--sh-radius', opts.radius + 'px');
     applyColors();
     applyIcons();
+
+    /* Stefnan er í keyframe-unum: ný stefna → nýjar hreyfingar á sama horni */
+    if (!spin.built || opts.dir !== prevDir) {
+      cruiseStop();
+      buildSpin();
+      spin.built = true;
+    }
 
     segs.forEach(function (S) {
       S.tiles.style.display = opts.sdg ? '' : 'none';
@@ -307,22 +333,27 @@
     if (sig === S.iconSig) return;
     S.iconSig = sig;
 
-    while (S.glyph.firstChild) S.glyph.removeChild(S.glyph.firstChild);
-    if (S.mask) { S.mask.parentNode.removeChild(S.mask); S.mask = null; }
+    var gs = S.glyphSvg;
+    while (gs.firstChild) gs.removeChild(gs.firstChild);
+    gs.setAttribute('viewBox', f2(-h) + ' ' + f2(-h) + ' ' + f2(size) + ' ' + f2(size));
+    gs.setAttribute('width', f2(size));
+    gs.setAttribute('height', f2(size));
+    gs.style.left = gs.style.top = f2(-h) + 'px';
 
     var box = { x: f2(-h), y: f2(-h), width: f2(size), height: f2(size) };
     var img;
     if (tint === 'none') {
       img = el('image', { href: href, x: box.x, y: box.y, width: box.width, height: box.height,
-        preserveAspectRatio: 'xMidYMid meet' }, S.glyph);
+        preserveAspectRatio: 'xMidYMid meet' }, gs);
     } else {
       var id = 'glyph-mask-' + s.key;
-      S.mask = el('mask', { id: id, 'mask-type': 'alpha', maskUnits: 'userSpaceOnUse',
-        maskContentUnits: 'userSpaceOnUse', x: box.x, y: box.y, width: box.width, height: box.height }, defs);
+      var mask = el('mask', { id: id, 'mask-type': 'alpha', maskUnits: 'userSpaceOnUse',
+        maskContentUnits: 'userSpaceOnUse', x: box.x, y: box.y, width: box.width, height: box.height },
+        el('defs', {}, gs));
       img = el('image', { href: href, x: box.x, y: box.y, width: box.width, height: box.height,
-        preserveAspectRatio: 'xMidYMid meet' }, S.mask);
+        preserveAspectRatio: 'xMidYMid meet' }, mask);
       el('rect', { x: box.x, y: box.y, width: box.width, height: box.height,
-        fill: '#' + tint, mask: 'url(#' + id + ')' }, S.glyph);
+        fill: '#' + tint, mask: 'url(#' + id + ')' }, gs);
     }
 
     /* Mynd sem hleðst ekki: sjálfgefna táknið í staðinn */
@@ -430,6 +461,81 @@
 
   function ease(dt, rate) { return 1 - Math.exp(-dt * rate); }
 
+  /*
+   * Snúningsvél. Ein hreyfing á .rot (0 → ±360°) og mótsnúningur á hverju
+   * .up. duration 360 s þýðir 1°/s við playbackRate 1, svo playbackRate er
+   * hraðinn í °/s og currentTime/1000 er hornið. Stefnan er í keyframe-
+   * unum (sign) svo playbackRate er alltaf jákvætt.
+   *
+   * cruise: hreyfingarnar spila sjálfar á compositor-þræðinum (jafn hraði).
+   * Annars eru þær á pásu og setAngle() stillir currentTime úr lykkjunni.
+   */
+  var PERIOD = 360000;
+  var spin = { anims: [], sign: 1, cruise: false, t: null, ups: [] };
+
+  function buildSpin() {
+    spin.anims.forEach(function (a) { a.cancel(); });
+    spin.anims = [];
+    spin.cruise = false;
+    spin.t = null;
+    spin.sign = opts.dir === 'cw' ? 1 : -1;
+    spin.ups = [];
+    segs.forEach(function (S) { spin.ups.push(S.glyph, S.lg); });
+    if (typeof rot.animate === 'function') {
+      var d = 360 * spin.sign, o = { duration: PERIOD, iterations: Infinity, easing: 'linear' };
+      spin.anims.push(rot.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(' + d + 'deg)' }], o));
+      spin.ups.forEach(function (n) {
+        spin.anims.push(n.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(' + -d + 'deg)' }], o));
+      });
+      spin.anims.forEach(function (a) { a.pause(); });
+    }
+    setAngle(st.rotation);
+  }
+
+  function angleTime(deg) {
+    return Math.round((((spin.sign * deg) % 360 + 360) % 360) * 1000 * 1000) / 1000;
+  }
+
+  /* Setur hornið beint (aðeins utan cruise) */
+  function setAngle(deg) {
+    var t = angleTime(deg);
+    if (t === spin.t) return;
+    spin.t = t;
+    if (!spin.anims.length) {
+      /* Vafrar án Web Animations: bein transform, eins og áður */
+      var r = (t / 1000 * spin.sign).toFixed(3);
+      rot.style.transform = 'rotate(' + r + 'deg)';
+      spin.ups.forEach(function (n) { n.style.transform = 'rotate(' + -r + 'deg)'; });
+      return;
+    }
+    spin.anims.forEach(function (a) { a.currentTime = t; });
+  }
+
+  /* Afhendir snúninginn compositor-þræðinum á jöfnum hraða vel (°/s) */
+  function cruiseStart(vel) {
+    if (spin.cruise || !spin.anims.length) return;
+    var rate = Math.abs(vel), t = angleTime(st.rotation);
+    var now = document.timeline.currentTime;
+    /* Sami startTime á öllum svo hringur, tákn og heiti séu alltaf samstillt */
+    spin.anims.forEach(function (a) {
+      a.playbackRate = rate;
+      a.startTime = now - t / rate;
+    });
+    spin.cruise = true;
+    spin.t = null;
+  }
+
+  /* Tekur snúninginn aftur yfir: les hornið og setur á pásu */
+  function cruiseStop() {
+    if (!spin.cruise) return;
+    var t = spin.anims[0].currentTime || 0;
+    st.rotation = ((spin.sign * t / 1000) % 360 + 360) % 360;
+    spin.anims.forEach(function (a) { a.pause(); });
+    spin.cruise = false;
+    spin.t = null;
+    setAngle(st.rotation);
+  }
+
   /* Næsta jafngilda horn við núverandi snúning (stysta leið) */
   function nearest(t) {
     return st.rotation + (((((t - st.rotation) % 360) + 540) % 360) - 180);
@@ -454,8 +560,8 @@
 
   function kick() {
     if (running || !canRun()) return;
+    cruiseStop();
     running = true;
-    st.idle = false;
     last = performance.now();
     requestAnimationFrame(tick);
   }
@@ -492,12 +598,15 @@
     var moving = false;
 
     var tgt = targetAngle();
+    st.wantCruise = false;
     if (tgt === null) {
       var tv = targetVel();
       st.vel = approach(st.vel, tv, ease(dt, 3.5), 0.01);
       st.rotation += st.vel * dt;
-      /* tv líka: fyrsti rammi getur fengið dt = 0 og þá hefur hraðinn ekki breyst */
-      moving = tv !== 0 || st.vel !== 0;
+      /* Jafn hraði: compositor tekur við og snúningurinn heldur lykkjunni ekki vakandi.
+         tv líka: fyrsti rammi getur fengið dt = 0 og þá hefur hraðinn ekki breyst */
+      if (st.vel === tv && tv !== 0) st.wantCruise = true;
+      else moving = tv !== 0 || st.vel !== 0;
     } else {
       st.vel = 0;
       var goal = nearest(tgt);
@@ -534,51 +643,27 @@
     var c = st.cam, vb = st.vb;
     var tf = 'translate(' + st.F[0] + ' ' + f2(st.F[1]) + ') scale(' + c.k.toFixed(4) +
       ') translate(' + (-c.px).toFixed(3) + ' ' + (-c.py).toFixed(3) + ')';
-    setA(cam1, 'transform', tf);
-    setA(cam2, 'transform', tf);
-    setA(ringG, 'transform', 'rotate(' + st.rotation.toFixed(3) + ')');
+    setA(cam, 'transform', tf);
+    if (!spin.cruise) setAngle(st.rotation);
 
     /* Í aðdrætti færist klippilínan niður svo hlutinn klippist ekki */
     var clipY = st.cropY + (st.bottom - st.cropY) * st.zOpen;
-    setA(cropRect, 'height', f2(clipY + G.E + 60));
 
-    /* HTML-textinn fylgir sömu myndavél: px-kvarði · viewBox · myndavél */
+    /* Hringlagið fylgir sömu myndavél: px-kvarði · viewBox · myndavél */
     setS(lblStage, 'transform', 'scale(' + pxScale.toFixed(5) + ') translate(' +
       (-vb.x + st.F[0]).toFixed(3) + 'px, ' + (-vb.y + st.F[1]).toFixed(3) + 'px) scale(' +
       c.k.toFixed(4) + ') translate(' + (-c.px).toFixed(3) + 'px, ' + (-c.py).toFixed(3) + 'px)');
-    /* …og sömu klippilínu og hringurinn, líka á meðan aðdráttur hreyfist */
+    /* …og klippist við klippilínuna, líka á meðan aðdráttur hreyfist */
     setS(lblLayer, 'clipPath', 'inset(0 0 ' +
       Math.max(0, (1 - (clipY - vb.y) / vb.h) * 100).toFixed(3) + '% 0)');
 
-    /*
-     * Samsett lag (will-change) á meðan eitthvað hreyfist, svo textinn renni
-     * um brot úr pixli; tekið af þegar aðdráttur er kyrr eða lykkjan hefur
-     * stöðvast (hover, speed=0) svo hann teiknist skarpur.
-     */
     var zoomed = st.zoomed !== null;
-    var settled = st.idle || (zoomed && c.k === opts.zoom && st.zOpen === 1);
-
     SEGMENTS.forEach(function (s, i) {
-      var S = segs[i], a = s.angle + st.rotation;
-      var p = pt(G.LABEL_R, a);
+      var S = segs[i];
       var H = S.tH + G.D_GAP + S.dH, off = S.open * (-H / 2 + S.tH / 2);
-      /*
-       * rotate(0.01deg) á hreyfingu: Chrome smellir ás-samsíða hliðrunum á
-       * heila tækjapixla (sést við devicePixelRatio 2), en ekki snúnum lögum.
-       * Tilfærslan er < 0,02 px yfir heila línu. Tekið af í kyrrum aðdrætti.
-       */
-      setS(S.lg, 'transform', 'translate3d(' + p[0].toFixed(3) + 'px, ' + p[1].toFixed(3) + 'px, 0)' +
-        (settled ? '' : ' rotate(0.01deg)'));
       setS(S.tg, 'transform', 'translate(-50%, ' + (off - S.tH / 2).toFixed(3) + 'px)');
       setS(S.dg, 'transform', 'translate(-50%, ' + (off + S.tH / 2 + G.D_GAP).toFixed(3) + 'px)');
       setS(S.dg, 'opacity', S.open.toFixed(3));
-      if (S.settled !== settled) {
-        S.settled = settled;
-        S.lg.classList.toggle('moving', !settled);
-      }
-
-      var gp = pt(G.BUB_RAD, a + G.BUB_OFF);
-      setA(S.glyph, 'transform', 'translate(' + gp[0].toFixed(3) + ' ' + gp[1].toFixed(3) + ')');
 
       var dim = zoomed && st.zoomed !== i;
       if (dim !== S.dim) {
@@ -595,8 +680,8 @@
     var dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
     var moving = step(dt);
-    if (!moving) st.idle = true;
     draw();
+    if (st.wantCruise) cruiseStart(st.vel);
     if (moving) requestAnimationFrame(tick);
     else running = false;
   }
@@ -655,12 +740,13 @@
     if (new URLSearchParams(window.location.search).get('debug') === '1') {
       window.__stefnuhringur = {
         setRotation: function (deg) {
+          cruiseStop();
           st.rotation = +deg;
           st.vel = 0;
           st.seek = null;
-          st.idle = false;   /* mælir hreyfiferilinn, eins og í snúningi */
           draw();
-        }
+        },
+        state: function () { return { rotation: st.rotation, vel: st.vel, cruise: spin.cruise, running: running }; }
       };
     }
   }

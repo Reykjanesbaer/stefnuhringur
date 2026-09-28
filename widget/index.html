@@ -20,15 +20,16 @@
   <div class="sh" id="sh" role="region" aria-label="Stefnuhringur Reykjanesbæjar">
     <p class="sr-only" id="summary"></p>
     <svg id="svg" focusable="false">
-      <defs><clipPath id="crop"><rect id="cropRect"/></clipPath></defs>
-      <g clip-path="url(#crop)">
-        <g id="cam1"><g id="ring"></g><g id="glyphs" aria-hidden="true"></g></g>
-      </g>
-      <g id="cam2"><g id="hub" aria-hidden="true"></g></g>
+      <g id="cam"><g id="hub" aria-hidden="true"></g></g>
     </svg>
-    <!-- Heiti og lýsingar sem HTML ofan á SVG-inu: SVG-texti smellist á heila
-         pixla lóðrétt í Chrome/Edge og titrar á meðan hringurinn snýst. -->
-    <div class="lbl-layer" id="lblLayer" aria-hidden="true"><div class="lbl-stage" id="lblStage"></div></div>
+    <!-- Hringurinn sjálfur: HTML-lag ofan á SVG-inu sem snýst á compositor-
+         þræði vafrans (Web Animations). Tákn og heiti mótsnúast og haldast
+         upprétt. Sjá haus widget.js. -->
+    <div class="lbl-layer" id="lblLayer"><div class="lbl-stage" id="lblStage">
+      <div class="rot" id="rot">
+        <svg class="ring-svg" id="ringSvg" focusable="false"><g id="ring"></g></svg>
+      </div>
+    </div></div>
     <div class="sr-only" aria-live="polite" id="live"></div>
   </div>
 
