@@ -240,7 +240,11 @@ hover, aðdráttur, lyklaborðsfókus, ný upphafsstaða) og sofnar þegar hrað
 er aftur jafn, þegar ekkert hreyfist, utan skjás eða þegar flipinn er falinn.
 
 HTML en ekki SVG-texti, því SVG-texti smellist á heila pixla lóðrétt í Chrome
-og Edge og titrar á meðan hringurinn snýst. Í prófunum er `?debug=1` til, sem
+og Edge og titrar á meðan hringurinn snýst. Þar sem `.rot` og `.up` snúast í
+gagnstæðar áttir er tákn og heiti samanlagt aðeins hliðrað, og Chrome smellir
+líka hreinum hliðrunum á heila tækjapixla (sést við devicePixelRatio 2).
+`.up` fær því `rotate: 0.01deg` á meðan eitthvað hreyfist; það er tekið af
+(`.still`) þegar ekkert hreyfist, svo textinn teiknist skarpur í kyrrstöðu. Í prófunum er `?debug=1` til, sem
 gefur `window.__stefnuhringur.setRotation(gráður)` og `.state()`.
 
 ---

@@ -101,6 +101,16 @@ html, body {
  * svo aðalþráðurinn gerir ekkert í jöfnum snúningi.
  */
 .rot, .orb, .up { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+/*
+ * .rot snýst um +θ og .up um −θ, svo samanlagt er tákn og heiti aðeins
+ * hliðrað. Chrome smellir hreinum hliðrunum á heila (tækja)pixla, líka á
+ * compositor við devicePixelRatio 2, og textinn titrar. 0,01° snúningur
+ * (sjálfstæða CSS-eigindin rotate, sem leggst ofan á hreyfinguna) kemur í
+ * veg fyrir það; tilfærslan er < 0,02 px yfir heila línu. Tekið af þegar
+ * ekkert hreyfist (.still) svo textinn teiknist skarpur.
+ */
+.up { rotate: 0.01deg; }
+.sh.still .up { rotate: none; }
 .ring-svg { position: absolute; overflow: visible; }
 .ring-svg .seg { pointer-events: auto; }
 .glyph svg { position: absolute; display: block; overflow: visible; }

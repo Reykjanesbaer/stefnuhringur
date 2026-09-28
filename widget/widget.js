@@ -18,7 +18,9 @@
  * er rusl sem safnast upp; ruslasöfnun (major GC) á nokkurra sek. fresti olli
  * hiksta. Nú snýst .rot (og mótsnúningur .up) sem Web Animation sem vafrinn
  * keyrir á compositor-þræði: lagið er teiknað einu sinni og aðalþráðurinn
- * gerir ekkert í jöfnum snúningi. HTML-texti rennur líka um brot úr pixli.
+ * gerir ekkert í jöfnum snúningi. HTML-texti rennur líka um brot úr pixli;
+ * .up fær rotate: 0.01deg á hreyfingu svo Chrome smelli textanum ekki á heila
+ * tækjapixla (sjá widget.css og updateStill()).
  *
  * JavaScript tekur aðeins við í umbreytingum (hægja á við hover, aðdráttur,
  * lyklaborðsfókus, ný upphafsstaða): þá eru hreyfingarnar settar á pásu og
@@ -241,7 +243,8 @@
     cropY: 0,
     bottom: 0,
     vb: { x: 0, y: 0, w: 1, h: 1 },
-    wantCruise: false  /* jafn hraði náður: compositor tekur við snúningnum */
+    wantCruise: false, /* jafn hraði náður: compositor tekur við snúningnum */
+    still: null        /* ekkert hreyfist: .still á #sh (sjá updateStill) */
   };
 
   function startAngle(key) {
@@ -562,8 +565,24 @@
     if (running || !canRun()) return;
     cruiseStop();
     running = true;
+    updateStill();
     last = performance.now();
     requestAnimationFrame(tick);
+  }
+
+  /*
+   * .still á #sh þegar ekkert hreyfist (lykkjan sofandi án cruise, eða kyrr
+   * aðdráttur): tekur 0,01° snúninginn af .up svo textinn teiknist skarpur.
+   * Sjá widget.css. Skrifað aðeins þegar ástandið breytist.
+   */
+  function updateStill() {
+    var c = st.cam;
+    var zoomSettled = st.zoomed !== null && c.k === opts.zoom && st.zOpen === 1;
+    var still = !spin.cruise && (!running || zoomSettled);
+    if (still !== st.still) {
+      st.still = still;
+      sh.classList.toggle('still', still);
+    }
   }
 
   /*
@@ -684,6 +703,7 @@
     if (st.wantCruise) cruiseStart(st.vel);
     if (moving) requestAnimationFrame(tick);
     else running = false;
+    updateStill();
   }
 
   /* ================================================================== */
@@ -744,6 +764,9 @@
           st.rotation = +deg;
           st.vel = 0;
           st.seek = null;
+          /* mælir hreyfiferilinn, eins og í snúningi */
+          st.still = false;
+          sh.classList.remove('still');
           draw();
         },
         state: function () { return { rotation: st.rotation, vel: st.vel, cruise: spin.cruise, running: running }; }
