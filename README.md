@@ -228,16 +228,24 @@ widget/?icon-vist=none&iconsize=120
 | Skipta | smellt á aðra áherslu í aðdrætti | Fer beint yfir á hana |
 | Til baka | mús fer út, sama áhersla aftur, miðjan, Esc, snerting utan áherslu, fókus fer | Aftur í 1×, snúningurinn fer mjúklega af stað |
 
-Hreyfingin keyrir í einni `requestAnimationFrame`-lykkju sem sefur þegar
-ekkert hreyfist, þegar hringurinn er utan skjás eða þegar flipinn er falinn.
-Öll gildi ná markgildi sínu og aðeins er skrifað í DOM þegar gildi breytist,
-svo kyrr hringur (hover, `speed=0`, kyrr aðdráttur) veldur engri endurteiknun.
+Jafn snúningur keyrir sem Web Animation á compositor-þræði vafrans: hringurinn
+(fleygar, heimsmarkmið, tákn og heiti) er HTML-lag (`.rot`) sem er teiknað
+einu sinni og vafrinn snýr því án þess að aðalþráðurinn geri neitt. Tákn og
+heiti mótsnúast (`.up`) og haldast upprétt. Áður var SVG-hópur snúinn úr
+JavaScript í hverjum ramma; það endurteiknaði allan hringinn og bjó til rusl
+sem ruslasöfnun hreinsaði á nokkurra sekúndna fresti, og það olli hiksta.
 
-Heiti og lýsingar eru HTML-lag ofan á SVG-inu (`.lbl-layer`), ekki SVG-texti.
-SVG-texti smellist á heila pixla lóðrétt í Chrome og Edge og titrar á meðan
-hringurinn snýst. HTML-lagið fylgir sömu myndavél og klippilínu og hringurinn
-og rennur um brot úr pixli. Í prófunum er `?debug=1` til, sem gefur
-`window.__stefnuhringur.setRotation(gráður)`.
+`requestAnimationFrame`-lykkjan tekur aðeins við í umbreytingum (hægja á við
+hover, aðdráttur, lyklaborðsfókus, ný upphafsstaða) og sofnar þegar hraðinn
+er aftur jafn, þegar ekkert hreyfist, utan skjás eða þegar flipinn er falinn.
+
+HTML en ekki SVG-texti, því SVG-texti smellist á heila pixla lóðrétt í Chrome
+og Edge og titrar á meðan hringurinn snýst. Þar sem `.rot` og `.up` snúast í
+gagnstæðar áttir er tákn og heiti samanlagt aðeins hliðrað, og Chrome smellir
+líka hreinum hliðrunum á heila tækjapixla (sést við devicePixelRatio 2).
+`.up` fær því `rotate: 0.01deg` á meðan eitthvað hreyfist; það er tekið af
+(`.still`) þegar ekkert hreyfist, svo textinn teiknist skarpur í kyrrstöðu. Í prófunum er `?debug=1` til, sem
+gefur `window.__stefnuhringur.setRotation(gráður)` og `.state()`.
 
 ---
 
